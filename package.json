@@ -1,9 +1,9 @@
 {
-    "name": "amxxpawn-language",
-    "displayName": "AMXXPawn Language",
+    "name": "amxx-pawn-language-editor",
+    "displayName": "AMXXPawn Language iceeedR",
     "description": "AMXXPawn Language Service",
-    "version": "0.7.6",
-    "publisher": "KliPPy & iceeedR",
+    "version": "1.0.6",
+    "publisher": "iceeedR",
     "license": "GPL-3.0",
     "icon": "images/extension-logo.png",
     "galleryBanner": {
@@ -28,16 +28,14 @@
         "alliedmodders"
     ],
     "engines": {
-        "vscode": "^1.11.0"
+        "vscode": "^1.75.0"
     },
     "categories": [
-        "Languages",
+        "Programming Languages",
         "Linters",
         "Snippets"
     ],
-    "activationEvents": [
-        "onLanguage:amxxpawn"
-    ],
+    "activationEvents": [],
     "main": "./build/client/client",
     "contributes": {
         "languages": [
@@ -128,7 +126,7 @@
                 "amxxpawn.compiler.outputType": {
                     "type": "string",
                     "default": "source",
-                    "description": "Where should .amxx files be output. Can be:\n  - 'source' (same as input)\n  - 'path' (specified in amxxpawn.compiler.outputPath setting)",
+                    "description": "Where should .amxx files be output. Can be:\n - 'source' (same as input)\n - 'path' (specified in amxxpawn.compiler.outputPath setting)",
                     "enum": [
                         "source",
                         "path"
@@ -160,18 +158,20 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "tsc -p ./",
-        "compile": "tsc -watch -p ./",
-        "postinstall": "node ./node_modules/vscode/bin/install"
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./"
     },
     "devDependencies": {
-        "@types/node": "^6.0.40",
-        "typescript": "^2.0.3",
-        "vscode": "^1.1.10"
+        "@types/node": "^18.0.0",
+        "@types/vscode": "^1.75.0",
+        "@vscode/test-electron": "^2.3.0",
+        "typescript": "^5.0.0"
     },
     "dependencies": {
-        "vscode-languageclient": "^3.3.0",
-        "vscode-languageserver": "^3.3.0",
-        "vscode-uri": "^1.0.1"
+        "vscode-languageclient": "^9.0.1",
+        "vscode-languageserver": "^9.0.1",
+        "vscode-languageserver-textdocument": "^1.0.8",
+        "vscode-uri": "^3.0.7"
     }
 }

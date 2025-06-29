@@ -2,231 +2,257 @@
 
 import * as FS from 'fs';
 import * as Path from 'path';
-import * as VSCLS from 'vscode-languageserver';
-import Uri from 'vscode-uri';
+import {
+    createConnection,
+    TextDocuments,
+    ProposedFeatures,
+    InitializeParams,
+    DidChangeConfigurationParams,
+    CompletionItem,
+    TextDocumentPositionParams,
+    TextDocumentSyncKind,
+    InitializeResult,
+    Definition,
+    SignatureHelp,
+    Hover,
+    DocumentLink,
+    Location,
+    SymbolInformation,
+    SymbolKind,
+    Diagnostic,
+    DiagnosticSeverity,
+    DidChangeConfigurationNotification,
+    DocumentLinkParams,
+    Range
+} from 'vscode-languageserver/node';
+import { TextDocument } from 'vscode-languageserver-textdocument';
+import { URI } from 'vscode-uri';
 import * as Settings from '../common/settings-types';
 import * as Parser from './parser';
 import * as Types from './types';
 import * as DM from './dependency-manager';
 import * as Helpers from './helpers';
-import {resolvePathVariables} from '../common/helpers';
+import { resolvePathVariables } from '../common/helpers';
+
+const connection = createConnection(ProposedFeatures.all);
+const documentsManager = new TextDocuments(TextDocument);
 
 let syncedSettings: Settings.SyncedSettings;
 let dependencyManager: DM.FileDependencyManager = new DM.FileDependencyManager();
-let documentsData: WeakMap<VSCLS.TextDocument, Types.DocumentData> = new WeakMap();
-let dependenciesData: WeakMap<DM.FileDependency, Types.DocumentData> = new WeakMap();
-let workspaceRoot: string = '';
+let documentsData: Map<string, Types.DocumentData> = new Map();
+let dependenciesData: Map<DM.FileDependency, Types.DocumentData> = new Map();
+let workspaceRoot: string | null = null;
+let hasConfigurationCapability: boolean = false;
 
-/**
- * In future switch to incremental sync
- */
-const connection = VSCLS.createConnection(new VSCLS.IPCMessageReader(process), new VSCLS.IPCMessageWriter(process));
-const documentsManager = new VSCLS.TextDocuments();
-
-documentsManager.listen(connection);
-connection.listen();
-
-connection.onInitialize((params) => {
+connection.onInitialize((params: InitializeParams): InitializeResult => {
     workspaceRoot = params.rootUri;
+    hasConfigurationCapability = !!(params.capabilities.workspace && !!params.capabilities.workspace.configuration);
 
     return {
         capabilities: {
-            textDocumentSync: documentsManager.syncKind,
-            documentLinkProvider: {
-                resolveProvider: false
-            },
+            textDocumentSync: TextDocumentSyncKind.Incremental,
+            documentLinkProvider: { resolveProvider: false },
             definitionProvider: true,
-            signatureHelpProvider: {
-                triggerCharacters: ['(', ',']
-            },
+            signatureHelpProvider: { triggerCharacters: ['(', ','] },
             documentSymbolProvider: true,
-            completionProvider: {
-                resolveProvider: false,
-                triggerCharacters: ['(', ',', '=', '@']
-            },
+            completionProvider: { resolveProvider: false, triggerCharacters: ['(', ',', '=', '@'] },
             hoverProvider: true
         }
     };
 });
 
-connection.onDocumentLinks((params) => {
-    function inclusionsToLinks(inclusions: Types.InclusionDescriptor[]): VSCLS.DocumentLink[] {
-        const links: VSCLS.DocumentLink[] = [];
-
-        inclusions.forEach((inclusion) => {
-            let filename = inclusion.filename;
-            // Remove a extensão .inc do nome do arquivo para formar a URL
-            if (filename.substring(filename.length - 4) === '.inc') {
-                filename = filename.substring(0, filename.length - 4);
-            }
-
-            links.push({
-                target: `https://amxx-bg.info/api/${filename}`,
-                range: {
-                    start: inclusion.start,
-                    end: inclusion.end
-                }
-            });
-        });
-
-        return links;
+connection.onInitialized(() => {
+    if (hasConfigurationCapability) {
+        connection.client.register(DidChangeConfigurationNotification.type, undefined);
     }
+});
 
-    if (syncedSettings.language.webApiLinks === true) {
-        const data = documentsData.get(documentsManager.get(params.textDocument.uri));
-        
-        return inclusionsToLinks(data.resolvedInclusions.map((inclusion) => inclusion.descriptor));
+// AQUI ESTÁ A CORREÇÃO PRINCIPAL
+// Esta função agora é muito mais segura.
+connection.onDidChangeConfiguration(async () => {
+    if (hasConfigurationCapability) {
+        // Em vez de confiar no objeto 'change', nós proativamente
+        // pedimos a configuração mais recente. Isso evita o erro de 'null'.
+        try {
+            syncedSettings = await connection.workspace.getConfiguration('amxxpawn');
+        } catch (e) {
+            connection.console.error(`Error fetching configuration: ${e}`);
+            // Usa um objeto vazio como fallback para evitar crashes
+            syncedSettings = { compiler: {} as Settings.CompilerSettings, language: {} as Settings.LanguageSettings };
+        }
+    }
+    // Re-analisa todos os documentos com a configuração nova (ou de fallback).
+    documentsManager.all().forEach(reparseDocument);
+});
+
+
+connection.onDocumentLinks((params: DocumentLinkParams): DocumentLink[] | null => {
+    const document = documentsManager.get(params.textDocument.uri);
+    if (!document) return null;
+    const data = documentsData.get(document.uri);
+    if (!data) return null;
+
+    if (syncedSettings?.language?.webApiLinks === true) {
+        return data.resolvedInclusions.map(inc => {
+            let filename = inc.descriptor.filename.replace(/\.inc$/, '');
+            const range = Range.create(inc.descriptor.start, inc.descriptor.end);
+            return DocumentLink.create(range, `https://amxx-bg.info/api/${filename}`);
+        });
     }
     
     return null;
 });
 
-connection.onDidChangeConfiguration((params) => {
-    const workspacePath = Uri.parse(workspaceRoot).fsPath;
-    syncedSettings = params.settings.amxxpawn as Settings.SyncedSettings;
-    syncedSettings.compiler.includePaths = syncedSettings.compiler.includePaths.map((path) => resolvePathVariables(path, workspacePath, undefined));
+async function validateAndReparse(document: TextDocument): Promise<void> {
+    if (hasConfigurationCapability && !syncedSettings) {
+        try {
+            syncedSettings = await connection.workspace.getConfiguration({
+                scopeUri: document.uri,
+                section: 'amxxpawn'
+            });
+        } catch (e) {
+            connection.console.error(`Could not fetch configuration: ${e}`);
+        }
+    }
+    reparseDocument(document);
+}
 
-    documentsManager.all().forEach(reparseDocument);
-});
+function reparseDocument(document: TextDocument) {
+    let data = documentsData.get(document.uri);
+    if (data === undefined) {
+        data = new Types.DocumentData(document.uri);
+        documentsData.set(document.uri, data);
+    }
 
-connection.onDefinition((params) => {
-    function inclusionLocation(inclusions: Types.ResolvedInclusion[]): VSCLS.Location {
+    if (data.reparseTimer) {
+        clearTimeout(data.reparseTimer);
+        data.reparseTimer = null;
+    }
+
+    const diagnostics: Map<string, Diagnostic[]> = new Map();
+    parseFile(URI.parse(document.uri), document.getText(), data, diagnostics, false);
+    
+    const allDocsData = documentsManager.all().map((doc) => documentsData.get(doc.uri)).filter(d => d !== undefined) as Types.DocumentData[];
+    Helpers.removeUnreachableDependencies(allDocsData, dependencyManager, dependenciesData);
+
+    diagnostics.forEach((ds, uri) => connection.sendDiagnostics({ uri: uri, diagnostics: ds }));
+}
+
+connection.onDefinition((params: TextDocumentPositionParams): Definition | null => {
+    const document = documentsManager.get(params.textDocument.uri);
+    if (!document) return null;
+    const data = documentsData.get(document.uri);
+    if (!data) return null;
+
+    function inclusionLocation(inclusions: Types.ResolvedInclusion[]): Location | null {
         for (const inc of inclusions) {
-            if (params.position.line === inc.descriptor.start.line
-                && params.position.character > inc.descriptor.start.character
-                && params.position.character < inc.descriptor.end.character
-            ) {
-                return VSCLS.Location.create(inc.uri, {
-                    start: { line: 0, character: 0 },
-                    end: { line: 0, character: 1 }
-                });
+            if (params.position.line === inc.descriptor.start.line &&
+                params.position.character > inc.descriptor.start.character &&
+                params.position.character < inc.descriptor.end.character) {
+                return Location.create(inc.uri, { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } });
             }
         }
-
         return null;
     };
 
-    const document = documentsManager.get(params.textDocument.uri);
-    if (document === undefined) {
-        return null;
-    }
-
-    const data = documentsData.get(document);
     const location = inclusionLocation(data.resolvedInclusions);
-    if (location !== null) {
-        return location;
-    }
+    if (location) return location;
 
     return Parser.doDefinition(document.getText(), params.position, data, dependenciesData);
 });
 
-connection.onSignatureHelp((params) => {
+connection.onSignatureHelp((params: TextDocumentPositionParams): SignatureHelp | null => {
     const document = documentsManager.get(params.textDocument.uri);
-    if (document === undefined) {
-        return null;
-    }
+    if (!document) return null;
+    const data = documentsData.get(document.uri);
+    if (!data) return null;
 
-    const data = documentsData.get(document);
     return Parser.doSignatures(document.getText(), params.position, Helpers.getSymbols(data, dependenciesData).callables);
 });
 
-connection.onDocumentSymbol((params) => {
-    const data = documentsData.get(documentsManager.get(params.textDocument.uri));
+connection.onDocumentSymbol((params): SymbolInformation[] | null => {
+    const document = documentsManager.get(params.textDocument.uri);
+    if (!document) return null;
+    const data = documentsData.get(document.uri);
+    if (!data) return null;
 
-    const symbols: VSCLS.SymbolInformation[] = data.callables.map<VSCLS.SymbolInformation>((clb) => ({
+    return data.callables.map<SymbolInformation>((clb) => ({
         name: clb.identifier,
-        location: {
-            range: {
-                start: clb.start,
-                end: clb.end
-            },
-            uri: params.textDocument.uri
-        },
-        kind: VSCLS.SymbolKind.Function
+        location: { range: { start: clb.start, end: clb.end }, uri: params.textDocument.uri },
+        kind: SymbolKind.Function
     }));
-
-    return symbols;
 });
 
-connection.onCompletion((params) => {
+connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] | null => {
     const document = documentsManager.get(params.textDocument.uri);
-    if (document === undefined) {
-        return null;
-    }
+    if (!document) return null;
+    const data = documentsData.get(document.uri);
+    if (!data) return null;
 
-    const data = documentsData.get(document);
-    return {
-        isIncomplete: true,
-        items: Parser.doCompletions(document.getText(), params.position, data, dependenciesData)
-    };
+    return Parser.doCompletions(document.getText(), params.position, data, dependenciesData);
 });
 
-connection.onHover((params) => {
+connection.onHover((params: TextDocumentPositionParams): Hover | null => {
     const document = documentsManager.get(params.textDocument.uri);
-    if (document === undefined) {
-        return null;
-    }
+    if (!document) return null;
+    const data = documentsData.get(document.uri);
+    if (!data) return null;
 
-    const data = documentsData.get(document);
     return Parser.doHover(document.getText(), params.position, data, dependenciesData);
 });
 
-documentsManager.onDidOpen((ev) => {
-    let data = new Types.DocumentData(ev.document.uri);
-    documentsData.set(ev.document, data);
-    reparseDocument(ev.document);
+documentsManager.onDidOpen((event) => {
+    validateAndReparse(event.document);
 });
 
-documentsManager.onDidClose((ev) => {
-    Helpers.removeDependencies(documentsData.get(ev.document).dependencies, dependencyManager, dependenciesData);
-    Helpers.removeUnreachableDependencies(documentsManager.all().map((doc) => documentsData.get(doc)), dependencyManager, dependenciesData);
-    documentsData.delete(ev.document);
-});
-
-documentsManager.onDidChangeContent((ev) => {
-    let data = documentsData.get(ev.document);
-
-    if (data.reparseTimer === null) {
-        data.reparseTimer = setTimeout(reparseDocument, syncedSettings.language.reparseInterval, ev.document);
+documentsManager.onDidClose((event) => {
+    const docData = documentsData.get(event.document.uri);
+    if (docData) {
+        Helpers.removeDependencies(docData.dependencies, dependencyManager, dependenciesData);
+        const allOpenDocsData = documentsManager.all()
+            .map(doc => documentsData.get(doc.uri))
+            .filter((d): d is Types.DocumentData => d !== undefined);
+        Helpers.removeUnreachableDependencies(allOpenDocsData, dependencyManager, dependenciesData);
+        documentsData.delete(event.document.uri);
     }
 });
 
+documentsManager.onDidChangeContent((change) => {
+    validateAndReparse(change.document);
+});
 
-function resolveIncludePath(filename: string, localTo: string): string {
-    const includePaths = [...syncedSettings.compiler.includePaths];
-    // If should check the local path, check it first
+function resolveIncludePath(filename: string, documentPath: string, localTo: string | undefined): string | undefined {
+    const workspacePath = workspaceRoot ? URI.parse(workspaceRoot).fsPath : undefined;
+    
+    const resolvedIncludePaths = (syncedSettings?.compiler?.includePaths || []).map(p => resolvePathVariables(p, workspacePath, documentPath));
+
+    const finalIncludePaths = [...resolvedIncludePaths];
     if (localTo !== undefined) {
-        includePaths.unshift(localTo);
+        finalIncludePaths.unshift(localTo);
     }
 
-    for (const includePath of includePaths) {
-        let path = Path.join(includePath, filename);
-
+    for (const includePath of finalIncludePaths) {
+        if (!includePath) continue;
         try {
-            FS.accessSync(path, FS.constants.R_OK);
-            return Uri.file(path).toString();
+            const fullPath = Path.join(includePath, filename);
+            FS.accessSync(fullPath, FS.constants.R_OK);
+            return URI.file(fullPath).toString();
         } catch (err) {
-            // Append .inc and try again
-            // amxxpc actually tries to append .p and .pawn in addition to .inc, but nobody uses those
             try {
-                path += '.inc';
-                FS.accessSync(path, FS.constants.R_OK);
-                return Uri.file(path).toString();
-            } catch (err) {
+                const fullPathWithExt = Path.join(includePath, filename + '.inc');
+                FS.accessSync(fullPathWithExt, FS.constants.R_OK);
+                return URI.file(fullPathWithExt).toString();
+            } catch (errInc) {
                 continue;
             }
         }
     }
-
     return undefined;
 }
 
-// Should probably move this to 'parser.ts'
-function parseFile(fileUri: Uri, content: string, data: Types.DocumentData, diagnostics: Map<string, VSCLS.Diagnostic[]>, isDependency: boolean) {
-    let myDiagnostics = [];
+function parseFile(fileUri: URI, content: string, data: Types.DocumentData, diagnostics: Map<string, Diagnostic[]>, isDependency: boolean) {
+    let myDiagnostics: Diagnostic[] = [];
     diagnostics.set(data.uri, myDiagnostics);
-    // We are going to list all dependencies here first before we add them to data.dependencies
-    // so we can check if any previous dependencies have been removed.
     const dependencies: DM.FileDependency[] = [];
 
     const results = Parser.parse(fileUri, content, isDependency);
@@ -234,70 +260,53 @@ function parseFile(fileUri: Uri, content: string, data: Types.DocumentData, diag
     data.resolvedInclusions = [];
     myDiagnostics.push(...results.diagnostics);
 
-    results.headerInclusions.forEach((header) => {
-        const resolvedUri = resolveIncludePath(header.filename, header.isLocal ? Path.dirname(Uri.parse(data.uri).fsPath) : undefined);
-        if (resolvedUri === data.uri) {
-            return;
-        }
+    const documentPath = fileUri.fsPath;
 
-        if (resolvedUri !== undefined) { // File exists
+    results.headerInclusions.forEach((header) => {
+        const localTo = header.isLocal ? Path.dirname(documentPath) : undefined;
+        const resolvedUri = resolveIncludePath(header.filename, documentPath, localTo);
+        
+        if (resolvedUri === data.uri) return;
+
+        if (resolvedUri !== undefined) {
             let dependency = dependencyManager.getDependency(resolvedUri);
             if (dependency === undefined) {
-                // No other files depend on the included one
                 dependency = dependencyManager.addReference(resolvedUri);
-            } else if (data.dependencies.indexOf(dependency) < 0) {
-                // The included file already has data, but the parsed file didn't depend on it before
+            } else if (!data.dependencies.includes(dependency)) {
                 dependencyManager.addReference(dependency.uri);
             }
             dependencies.push(dependency);
 
             let depData = dependenciesData.get(dependency);
-            if (depData === undefined) { // The dependency file has no data yet
+            if (depData === undefined) {
                 depData = new Types.DocumentData(dependency.uri);
                 dependenciesData.set(dependency, depData);
-
-                // This should probably be made asynchronous in the future as it probably
-                // blocks the event loop for a considerable amount of time.
-                const content = FS.readFileSync(Uri.parse(dependency.uri).fsPath).toString();
-                parseFile(Uri.parse(dependency.uri), content, depData, diagnostics, true);
+                try {
+                    const dependencyUri = URI.parse(dependency.uri);
+                    const fileContent = FS.readFileSync(dependencyUri.fsPath).toString();
+                    parseFile(dependencyUri, fileContent, depData, diagnostics, true);
+                } catch (e) {
+                    connection.console.error(`Failed to read dependency file ${dependency.uri}: ${e.message}`);
+                }
             }
-
-            data.resolvedInclusions.push({
-                uri: resolvedUri,
-                descriptor: header
-            });
+            data.resolvedInclusions.push({ uri: resolvedUri, descriptor: header });
         } else {
             myDiagnostics.push({
                 message: `Couldn't resolve include path '${header.filename}'. Check compiler include paths.`,
-                severity: header.isSilent ? VSCLS.DiagnosticSeverity.Information : VSCLS.DiagnosticSeverity.Error,
+                severity: header.isSilent ? DiagnosticSeverity.Information : DiagnosticSeverity.Error,
                 source: 'amxxpawn',
-                range: {
-                    start: header.start,
-                    end: header.end
-                }
+                range: { start: header.start, end: header.end }
             });
         }
     });
 
-    // Remove all dependencies that have been previously removed from the parsed document
-    Helpers.removeDependencies(data.dependencies.filter((dep) => dependencies.indexOf(dep) < 0), dependencyManager, dependenciesData);
+    const oldDeps = data.dependencies.filter((dep) => !dependencies.includes(dep));
+    Helpers.removeDependencies(oldDeps, dependencyManager, dependenciesData);
     data.dependencies = dependencies;
 
     data.callables = results.callables;
     data.values = results.values;
 }
 
-function reparseDocument(document: VSCLS.TextDocument) {
-    const data = documentsData.get(document);
-    if (data === undefined) {
-        return;
-    }
-    data.reparseTimer = null;
-
-    const diagnostics: Map<string, VSCLS.Diagnostic[]> = new Map();
-
-    parseFile(Uri.parse(document.uri), document.getText(), data, diagnostics, false);
-    // Find and remove any dangling nodes in the dependency graph
-    Helpers.removeUnreachableDependencies(documentsManager.all().map((doc) => documentsData.get(doc)), dependencyManager, dependenciesData);
-    diagnostics.forEach((ds, uri) => connection.sendDiagnostics({ uri: uri, diagnostics: ds }));
-}
+documentsManager.listen(connection);
+connection.listen();

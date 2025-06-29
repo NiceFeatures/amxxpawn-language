@@ -2,44 +2,48 @@
 
 import * as Path from 'path';
 import * as VSC from 'vscode';
-import * as VSCLC from 'vscode-languageclient';
+import {
+    LanguageClient,
+    LanguageClientOptions,
+    ServerOptions,
+    TransportKind
+} from 'vscode-languageclient/node';
 import * as Commands from './commands';
 
+let client: LanguageClient;
 let diagnosticCollection: VSC.DiagnosticCollection;
-
 
 export function activate(ctx: VSC.ExtensionContext) {
     const serverModulePath = ctx.asAbsolutePath(Path.join('build', 'server', 'server.js'));
     const debugOptions = { execArgv: ['--nolazy', '--inspect=5858'] };
 
-    const serverOptions: VSCLC.ServerOptions = {
-        run: {
-            module: serverModulePath,
-            transport: VSCLC.TransportKind.ipc,
-            options: debugOptions
-        },
+    const serverOptions: ServerOptions = {
+        run: { module: serverModulePath, transport: TransportKind.ipc },
         debug: {
             module: serverModulePath,
-            transport: VSCLC.TransportKind.ipc,
+            transport: TransportKind.ipc,
             options: debugOptions
         }
     };
 
-    const clientOptions: VSCLC.LanguageClientOptions = {
-        documentSelector: [ 'amxxpawn' ],
+    const clientOptions: LanguageClientOptions = {
+        documentSelector: [{ scheme: 'file', language: 'amxxpawn' }],
         synchronize: {
-            configurationSection: [
-                'amxxpawn.language',
-                'amxxpawn.compiler'
-            ],
+            configurationSection: 'amxxpawn',
             fileEvents: VSC.workspace.createFileSystemWatcher('**/*.*')
         }
     };
 
-    const languageClient = new VSCLC.LanguageClient('amxxpawn', 'AMXXPawn Language Service', serverOptions, clientOptions);
+    client = new LanguageClient(
+        'amxxpawn',
+        'AMXXPawn Language Service',
+        serverOptions,
+        clientOptions
+    );
+
+    client.start();
 
     const outputChannel = VSC.window.createOutputChannel('AMXXPC Output / AMXXPawn');
-
     diagnosticCollection = VSC.languages.createDiagnosticCollection('amxxpawn');
     
     const commandCompile = VSC.commands.registerCommand('amxxpawn.compile', Commands.compile.bind(null, outputChannel, diagnosticCollection));
@@ -47,18 +51,12 @@ export function activate(ctx: VSC.ExtensionContext) {
 
     VSC.workspace.onDidChangeTextDocument(onDidChangeTextDocument);
     
-    // Push all disposables
     ctx.subscriptions.push(
-        languageClient.start(),
-
+        client,
         diagnosticCollection,
-
-        // Commands
         commandCompile,
         commandCompileLocal,
-        
-        // Output channels
-        VSC.Disposable.from(outputChannel)
+        outputChannel
     );
 }
 
@@ -66,6 +64,10 @@ function onDidChangeTextDocument(ev: VSC.TextDocumentChangeEvent) {
     diagnosticCollection.delete(ev.document.uri);
 }
 
-export function deactivate() {
+export function deactivate(): Thenable<void> | undefined {
+    if (!client) {
+        return undefined;
+    }
 
+    return client.stop();
 }

@@ -2,7 +2,7 @@
 
 import * as VSCLS from 'vscode-languageserver';
 import * as DM from './dependency-manager';
-import Uri from 'vscode-uri';
+import { URI } from 'vscode-uri'; // Corrigido de 'Uri' para '{ URI }'
 
 export interface InclusionDescriptor {
     // The included filename
@@ -32,8 +32,7 @@ export interface CallableDescriptor {
     identifier: string;
 
     // Where in the file is the callable defined
-    // TODO: Make this VSCLS.Location
-    file: Uri;
+    file: URI; // Corrigido de 'Uri' para 'URI'
     start: VSCLS.Position;
     end: VSCLS.Position;
 
@@ -43,8 +42,6 @@ export interface CallableDescriptor {
     documentaton: string;
 };
 
-// Awfully bad name but will do. Neither "Variable" nor "Constant" would be
-// good enough, but "Symbol" and "Identifier" are too broad
 export interface ValueDescriptor {
     // Prototype
     label: string;
@@ -56,8 +53,7 @@ export interface ValueDescriptor {
     isConst: boolean;
 
     // Where is it defined
-    // TODO: Make this VSCLS.Locaton
-    file: Uri;
+    file: URI; // Corrigido de 'Uri' para 'URI'
     range: VSCLS.Range;
 
     documentaton: string;
@@ -79,7 +75,7 @@ export class ParserResults {
 
 export class DocumentData {
     public uri: string;
-    public reparseTimer: NodeJS.Timer;
+    public reparseTimer: NodeJS.Timeout | null; // Corrigido para um tipo mais compatível
     public resolvedInclusions: ResolvedInclusion[];
     public callables: CallableDescriptor[];
     public values: ValueDescriptor[];
