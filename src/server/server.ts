@@ -4,13 +4,12 @@ import * as FS from 'fs';
 import * as Path from 'path';
 import * as VSCLS from 'vscode-languageserver';
 import Uri from 'vscode-uri';
-import * as Settings from '../common/settings-types'; 
+import * as Settings from '../common/settings-types';
 import * as Parser from './parser';
 import * as Types from './types';
 import * as DM from './dependency-manager';
 import * as Helpers from './helpers';
 import {resolvePathVariables} from '../common/helpers';
-import {amxxDefaultHeaders} from './amxx-default-headers';
 
 let syncedSettings: Settings.SyncedSettings;
 let dependencyManager: DM.FileDependencyManager = new DM.FileDependencyManager();
@@ -34,7 +33,7 @@ connection.onInitialize((params) => {
         capabilities: {
             textDocumentSync: documentsManager.syncKind,
             documentLinkProvider: {
-               resolveProvider: false 
+                resolveProvider: false
             },
             definitionProvider: true,
             signatureHelpProvider: {
@@ -56,24 +55,24 @@ connection.onDocumentLinks((params) => {
 
         inclusions.forEach((inclusion) => {
             let filename = inclusion.filename;
-            if(filename.substring(filename.length - 4) === '.inc') { // Remove .inc before checking
+            // Remove a extensão .inc do nome do arquivo para formar a URL
+            if (filename.substring(filename.length - 4) === '.inc') {
                 filename = filename.substring(0, filename.length - 4);
             }
-            if(amxxDefaultHeaders.indexOf(filename) >= 0) {
-                links.push({
-                    target: `https://amxmodx.org/api/${filename}`,
-                    range: {
-                        start: inclusion.start,
-                        end: inclusion.end
-                    }
-                });
-            }
+
+            links.push({
+                target: `https://amxx-bg.info/api/${filename}`,
+                range: {
+                    start: inclusion.start,
+                    end: inclusion.end
+                }
+            });
         });
 
         return links;
     }
 
-    if(syncedSettings.language.webApiLinks === true) {
+    if (syncedSettings.language.webApiLinks === true) {
         const data = documentsData.get(documentsManager.get(params.textDocument.uri));
         
         return inclusionsToLinks(data.resolvedInclusions.map((inclusion) => inclusion.descriptor));
@@ -92,8 +91,8 @@ connection.onDidChangeConfiguration((params) => {
 
 connection.onDefinition((params) => {
     function inclusionLocation(inclusions: Types.ResolvedInclusion[]): VSCLS.Location {
-        for(const inc of inclusions) {
-            if( params.position.line === inc.descriptor.start.line
+        for (const inc of inclusions) {
+            if (params.position.line === inc.descriptor.start.line
                 && params.position.character > inc.descriptor.start.character
                 && params.position.character < inc.descriptor.end.character
             ) {
@@ -108,13 +107,13 @@ connection.onDefinition((params) => {
     };
 
     const document = documentsManager.get(params.textDocument.uri);
-    if(document === undefined) {
+    if (document === undefined) {
         return null;
     }
 
     const data = documentsData.get(document);
     const location = inclusionLocation(data.resolvedInclusions);
-    if(location !== null) {
+    if (location !== null) {
         return location;
     }
 
@@ -123,7 +122,7 @@ connection.onDefinition((params) => {
 
 connection.onSignatureHelp((params) => {
     const document = documentsManager.get(params.textDocument.uri);
-    if(document === undefined) {
+    if (document === undefined) {
         return null;
     }
 
@@ -151,7 +150,7 @@ connection.onDocumentSymbol((params) => {
 
 connection.onCompletion((params) => {
     const document = documentsManager.get(params.textDocument.uri);
-    if(document === undefined) {
+    if (document === undefined) {
         return null;
     }
 
@@ -164,7 +163,7 @@ connection.onCompletion((params) => {
 
 connection.onHover((params) => {
     const document = documentsManager.get(params.textDocument.uri);
-    if(document === undefined) {
+    if (document === undefined) {
         return null;
     }
 
@@ -187,7 +186,7 @@ documentsManager.onDidClose((ev) => {
 documentsManager.onDidChangeContent((ev) => {
     let data = documentsData.get(ev.document);
 
-    if(data.reparseTimer === null) {
+    if (data.reparseTimer === null) {
         data.reparseTimer = setTimeout(reparseDocument, syncedSettings.language.reparseInterval, ev.document);
     }
 });
@@ -196,24 +195,24 @@ documentsManager.onDidChangeContent((ev) => {
 function resolveIncludePath(filename: string, localTo: string): string {
     const includePaths = [...syncedSettings.compiler.includePaths];
     // If should check the local path, check it first
-    if(localTo !== undefined) {
+    if (localTo !== undefined) {
         includePaths.unshift(localTo);
     }
 
-    for(const includePath of includePaths) {
+    for (const includePath of includePaths) {
         let path = Path.join(includePath, filename);
 
         try {
             FS.accessSync(path, FS.constants.R_OK);
             return Uri.file(path).toString();
-        } catch(err) {
+        } catch (err) {
             // Append .inc and try again
             // amxxpc actually tries to append .p and .pawn in addition to .inc, but nobody uses those
             try {
                 path += '.inc';
                 FS.accessSync(path, FS.constants.R_OK);
                 return Uri.file(path).toString();
-            } catch(err) {
+            } catch (err) {
                 continue;
             }
         }
@@ -231,32 +230,32 @@ function parseFile(fileUri: Uri, content: string, data: Types.DocumentData, diag
     const dependencies: DM.FileDependency[] = [];
 
     const results = Parser.parse(fileUri, content, isDependency);
-    
+
     data.resolvedInclusions = [];
     myDiagnostics.push(...results.diagnostics);
 
     results.headerInclusions.forEach((header) => {
         const resolvedUri = resolveIncludePath(header.filename, header.isLocal ? Path.dirname(Uri.parse(data.uri).fsPath) : undefined);
-        if(resolvedUri === data.uri) {
+        if (resolvedUri === data.uri) {
             return;
         }
 
-        if(resolvedUri !== undefined) { // File exists
+        if (resolvedUri !== undefined) { // File exists
             let dependency = dependencyManager.getDependency(resolvedUri);
-            if(dependency === undefined) {
+            if (dependency === undefined) {
                 // No other files depend on the included one
                 dependency = dependencyManager.addReference(resolvedUri);
-            } else if(data.dependencies.indexOf(dependency) < 0) {
+            } else if (data.dependencies.indexOf(dependency) < 0) {
                 // The included file already has data, but the parsed file didn't depend on it before
                 dependencyManager.addReference(dependency.uri);
             }
             dependencies.push(dependency);
 
             let depData = dependenciesData.get(dependency);
-            if(depData === undefined) { // The dependency file has no data yet
+            if (depData === undefined) { // The dependency file has no data yet
                 depData = new Types.DocumentData(dependency.uri);
                 dependenciesData.set(dependency, depData);
-                
+
                 // This should probably be made asynchronous in the future as it probably
                 // blocks the event loop for a considerable amount of time.
                 const content = FS.readFileSync(Uri.parse(dependency.uri).fsPath).toString();
@@ -290,7 +289,7 @@ function parseFile(fileUri: Uri, content: string, data: Types.DocumentData, diag
 
 function reparseDocument(document: VSCLS.TextDocument) {
     const data = documentsData.get(document);
-    if(data === undefined) {
+    if (data === undefined) {
         return;
     }
     data.reparseTimer = null;
