@@ -2,7 +2,7 @@
     "name": "amxx-pawn-language-editor",
     "displayName": "AMXXPawn Language iceeedR",
     "description": "AMXXPawn Language Service",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "publisher": "iceeedR",
     "license": "GPL-3.0",
     "icon": "images/extension-logo.png",
@@ -16,10 +16,10 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/rsKliPPy/amxxpawn-language"
+        "url": "https://github.com/NiceFeatures/amxxpawn-language"
     },
     "bugs": {
-        "url": "https://github.com/rsKliPPy/amxxpawn-language/issues"
+        "url": "https://github.com/NiceFeatures/amxxpawn-language/issues"
     },
     "keywords": [
         "amxx",
