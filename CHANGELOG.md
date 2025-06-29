@@ -1,3 +1,7 @@
+## [Version 1.0.8] - 2025-06-29
+### Added
+- Atualizada função CTRL + Click para tbm encontrar a função dentro de set_task e etc
+
 ## [Version 1.0.7] - 2025-06-29
 ### Added
 - Atualizado link com acesso para o github
