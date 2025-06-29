@@ -2,8 +2,8 @@
     "name": "amxxpawn-language",
     "displayName": "AMXXPawn Language",
     "description": "AMXXPawn Language Service",
-    "version": "0.7.5",
-    "publisher": "KliPPy",
+    "version": "0.7.6",
+    "publisher": "KliPPy & iceeedR",
     "license": "GPL-3.0",
     "icon": "images/extension-logo.png",
     "galleryBanner": {
