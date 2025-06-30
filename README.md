@@ -68,6 +68,11 @@ Para que a extensão funcione 100%, você **precisa** dizer a ela onde seu compi
     "amxxpawn.compiler.includePaths": [
         "C:\\caminho\\para\\seu\\compiler\\include"
     ]
+
+    // --- CONFIGURAÇÃO RECOMENDADA ---
+    // Para uma experiência de autocomplete mais limpa e inteligente,
+    // desativando sugestões genéricas baseadas em palavras do arquivo.
+    "editor.wordBasedSuggestions": "off"
 }
 ```
 

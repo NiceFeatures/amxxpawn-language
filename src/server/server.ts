@@ -189,7 +189,7 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] |
     const data = documentsData.get(document.uri);
     if (!data) return null;
 
-    return Parser.doCompletions(document.getText(), params.position, data, dependenciesData);
+    return Parser.doCompletions(connection, document.getText(), params.position, data, dependenciesData);
 });
 
 connection.onHover((params: TextDocumentPositionParams): Hover | null => {

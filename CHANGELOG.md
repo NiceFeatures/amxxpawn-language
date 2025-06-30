@@ -1,3 +1,11 @@
+## [Version 1.1.2] - 2025-06-30
+### Added
+- Melhor ajuste no autocomplete e busca de includes e definições
+
+## [Version 1.1.1] - 2025-06-30
+### Added
+- Melhorias no CTRL + CLICK e ajustes para melhor uso e busca
+
 ## [Version 1.1.0] - 2025-06-29
 ### Added
 - Bind automática do compilador no F9 adicionada por padrão
