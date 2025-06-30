@@ -16,7 +16,7 @@
     <a href="https://marketplace.visualstudio.com/items?itemName=iceeedR.amxx-pawn-language-editor">
         <img alt="Visual Studio Marketplace Installs" src="https://img.shields.io/visual-studio-marketplace/i/iceeedR.amxx-pawn-language-editor?style=for-the-badge&color=blue">
     </a>
-    <img alt="License" src="https://img.shields.io/github/license/iceeedR/amxxpawn-language?style=for-the-badge&color=lightgrey">
+    <img alt="License" src="https://img.shields.io/github/license/NiceFeatures/amxxpawn-language?style=for-the-badge&color=lightgrey">
 </p>
 
 ---
@@ -97,7 +97,7 @@ Este projeto é uma modernização de uma base de código legada, agora utilizan
 
 **Para compilar e testar localmente:**
 
-1.  Clone o repositório: `git clone https://github.com/iceeedR/amxxpawn-language.git`
+1.  Clone o repositório: `git clone https://github.com/NiceFeatures/amxxpawn-language.git`
 2.  Instale as dependências: `npm install`
 3.  Compile o projeto: `npm run compile`
 4.  Abra o projeto no VS Code e pressione `F5` para iniciar uma sessão de depuração.
