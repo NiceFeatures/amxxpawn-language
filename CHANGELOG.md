@@ -1,3 +1,10 @@
+## [Version 1.1.4] - 2025-07-03
+### Added
+- Aprimorada a Ajuda de Assinatura (`Signature Help`) para suportar parâmetros nomeados e destacar o parâmetro correto.
+- *Enhanced Signature Help to support named parameters and highlight the correct parameter.*
+- Desativado o Autocomplete dentro de parênteses `()` para evitar sugestões irrelevantes.
+- *Disabled Autocomplete inside parentheses `()` to prevent irrelevant suggestions.*
+
 ## [Version 1.1.3] - 2025-06-30
 ### Added
 - Tradução do changelog para inglês

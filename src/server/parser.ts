@@ -212,14 +212,10 @@ export function doCompletions(
     const openParenIndex = linePrefix.lastIndexOf('(');
     const closeParenIndex = linePrefix.lastIndexOf(')');
 
-    // REGRA ÚNICA: Se o cursor estiver dentro de um bloco de parênteses (...),
-    // não importa se é uma definição ou uma chamada, nós não queremos sugestões globais.
-    // Retornar uma lista vazia é a forma correta de dizer "não tenho nada para sugerir aqui".
     if (openParenIndex > closeParenIndex) {
         return [];
     }
 
-    // A lógica abaixo agora só será executada FORA dos parênteses.
     const cursorIndex = positionToIndex(content, position);
     const identifier = findIdentifierBehindCursor(content, cursorIndex);
     
@@ -250,25 +246,40 @@ export function doCompletions(
 }
 
 function findFunctionIdentifier(content: string, cursorIndex: number): FindFunctionIdentifierResult {
-    let index = cursorIndex - 1, parenthesisDepth = 0, identifier = '', parameterIndex = 0;
-    while(index >= 0) {
-        const char = content[index];
-        if(char === ';') return { identifier: '' };
-        if(char === ',' && parenthesisDepth === 0) parameterIndex++;
-        if(char === ')') parenthesisDepth++;
-        if(char === '(') {
-            if(parenthesisDepth > 0) { parenthesisDepth--; }
-            else {
-                let endOfIdent = index;
-                while(endOfIdent > 0 && StringHelpers.isWhitespace(content[endOfIdent - 1])) endOfIdent--;
+    let searchIndex = cursorIndex - 1;
+    let parenDepth = 0;
+    
+    while (searchIndex >= 0) {
+        const char = content[searchIndex];
+        if (char === ')') {
+            parenDepth++;
+        } else if (char === '(') {
+            if (parenDepth > 0) {
+                parenDepth--;
+            } else {
+                const openParenPos = searchIndex;
+
+                let endOfIdent = openParenPos;
+                while (endOfIdent > 0 && StringHelpers.isWhitespace(content[endOfIdent - 1])) endOfIdent--;
                 let startOfIdent = endOfIdent;
-                while(startOfIdent > 0 && StringHelpers.isAlphaNum(content[startOfIdent - 1])) startOfIdent--;
-                identifier = content.substring(startOfIdent, endOfIdent);
+                while (startOfIdent > 0 && StringHelpers.isAlphaNum(content[startOfIdent - 1])) startOfIdent--;
+                const identifier = content.substring(startOfIdent, endOfIdent);
+
+                let parameterIndex = 0;
+                for (let i = openParenPos + 1; i < cursorIndex; i++) {
+                    if (content[i] === ',') {
+                        parameterIndex++;
+                    }
+                }
+                
                 return { identifier, parameterIndex };
             }
+        } else if (char === ';') {
+            return { identifier: '' };
         }
-        index--;
+        searchIndex--;
     }
+
     return { identifier: '' };
 }
 
@@ -299,16 +310,61 @@ export function doHover(
     return null;
 }
 
-
 export function doSignatures(content: string, position: VSCLS.Position, callables: Types.CallableDescriptor[]): VSCLS.SignatureHelp | null {
     const cursorIndex = positionToIndex(content, position);
     const result = findFunctionIdentifier(content, cursorIndex);
-    if (!result.identifier) return null;
+
+    if (!result.identifier) {
+        return null;
+    }
+    
     const callable = callables.find(c => c.identifier === result.identifier);
-    if (!callable || callable.start.line === callable.start.line) return null;
+    
+    if (!callable) {
+        return null;
+    }
+
+    let activeParameter = 0;
+    const openParenPos = content.lastIndexOf('(', cursorIndex - 1);
+
+    if (openParenPos !== -1) {
+        const textInParens = content.substring(openParenPos + 1, cursorIndex);
+        const lastCommaPos = textInParens.lastIndexOf(',');
+        const currentParamText = textInParens.substring(lastCommaPos + 1);
+
+        if (currentParamText.trim().startsWith('.')) {
+            const paramNameMatch = currentParamText.match(/\.(\w+)/);
+            if (paramNameMatch) {
+                const paramName = paramNameMatch[1];
+                const foundIndex = callable.parameters.findIndex(p => {
+                    if (typeof p.label !== 'string') {
+                        return false;
+                    }
+                    const paramSignature = p.label.split('=')[0].trim();
+
+                    const nameMatch = paramSignature.match(/(\w+)(?:\s*\[\s*\])?\s*$/);
+                    
+                    return nameMatch ? nameMatch[1] === paramName : false;
+                });
+                
+                if (foundIndex !== -1) {
+                    activeParameter = foundIndex;
+                } else {
+                    activeParameter = (textInParens.match(/,/g) || []).length;
+                }
+            }
+        } else {
+            activeParameter = (textInParens.match(/,/g) || []).length;
+        }
+    }
+
     return {
         activeSignature: 0,
-        activeParameter: result.parameterIndex,
-        signatures: [{ label: callable.label, parameters: callable.parameters, documentation: callable.documentaton }]
+        activeParameter: activeParameter,
+        signatures: [{ 
+            label: callable.label, 
+            parameters: callable.parameters, 
+            documentation: callable.documentaton 
+        }]
     };
 }
