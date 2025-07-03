@@ -1,5 +1,10 @@
+---
+layout: default
+---
+
 <p align="center">
-  <a href="/">Página Inicial</a> | <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças (Changelog)</a>
+  <a href="/amxxpawn-language/">Página Inicial</a> | 
+  <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
 ## [Version 1.1.4] - 2025-07-03
