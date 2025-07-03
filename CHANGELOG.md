@@ -1,8 +1,3 @@
-<p align="center">
-  <a href="/amxxpawn-language/">Página Inicial</a> | 
-  <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
-</p>
-
 ## [Version 1.1.4] - 2025-07-03
 ### Added
 - Aprimorada a Ajuda de Assinatura (`Signature Help`) para suportar parâmetros nomeados e destacar o parâmetro correto.
