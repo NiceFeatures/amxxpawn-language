@@ -1,8 +1,6 @@
-# Arquivo: _config.yml
-
-# Título e descrição que aparecerão no site
 title: AMXXPawn Language Service
 description: Uma experiência de desenvolvimento moderna e poderosa para a clássica linguagem AMXXPawn.
 
-# Escolhe um tema visual para o site. Este é um tema limpo e popular.
 theme: jekyll-theme-minimal
+
+url: "https://NiceFeatures.github.io"
