@@ -1,5 +1,6 @@
 <p align="center">
-  <a href="/">Página Inicial</a> | <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças (Changelog)</a>
+  <a href="/amxxpawn-language/">Página Inicial</a> | 
+  <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
 # AMXXPawn Language Service para Visual Studio Code
