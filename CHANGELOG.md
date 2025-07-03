@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="/">Página Inicial</a> | <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças (Changelog)</a>
+</p>
+
 ## [Version 1.1.4] - 2025-07-03
 ### Added
 - Aprimorada a Ajuda de Assinatura (`Signature Help`) para suportar parâmetros nomeados e destacar o parâmetro correto.
