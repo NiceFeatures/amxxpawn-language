@@ -7,6 +7,11 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.1.5] - 2025-07-04
+### Fixed
+- Corrigido um bug crítico de realce de sintaxe que afetava strings com URLs (http://), especialmente dentro de operadores ternários.
+- *Fixed a critical syntax highlighting bug that affected strings with URLs (http://), especially within ternary operators.*
+
 ## [Version 1.1.4] - 2025-07-03
 ### Added
 - Aprimorada a Ajuda de Assinatura (`Signature Help`) para suportar parâmetros nomeados e destacar o parâmetro correto.
