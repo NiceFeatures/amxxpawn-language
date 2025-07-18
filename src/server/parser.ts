@@ -71,7 +71,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
         }
 
         if (lineContent.startsWith('#include') || lineContent.startsWith('#tryinclude')) {
-            const match = lineContent.match(/#\s*(?:try)?include\s*(?:<|")(.+?)(?:>|")/);
+            const match = lineContent.match(/#\s*(?:try)?include\s*(?:<|")\s*(.+?)\s*(?:>|")/);
             if (match && match[1]) {
                 results.headerInclusions.push({
                     filename: match[1], isLocal: lineContent.includes('"'), isSilent: lineContent.startsWith('#tryinclude'),

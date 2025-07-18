@@ -7,6 +7,16 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.1.7] - 2025-07-18
+### Fixed
+- Corrigido um bug visual onde diretivas `#include` com espaços (ex: `#include < fun >`) eram incorretamente sublinhadas como erro.
+- *Fixed a visual bug where `#include` directives with spaces (e.g., `#include < fun >`) were incorrectly underlined as errors.*
+
+## [Version 1.1.6] - 2025-07-07
+### Fixed
+- Inserido novamente o README.md.
+- *Inserted README.md*
+
 ## [Version 1.1.5] - 2025-07-04
 ### Fixed
 - Corrigido um bug crítico de realce de sintaxe que afetava strings com URLs (http://), especialmente dentro de operadores ternários.
