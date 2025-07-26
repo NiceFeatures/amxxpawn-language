@@ -12,10 +12,9 @@ interface FindFunctionIdentifierResult {
     parameterIndex?: number;
 }
 
-const callableDefinitionRegex = /^\s*(?:(forward|native|public|static|stock)\s+)?(?:([A-Za-z_@][\w@]*)\s*:\s*)?([A-Za-z_@][\w@]+)\s*\(([^)]*)\)/;
+const callableDefinitionRegex = /^\s*(?:(forward|native|public|static|stock)\s+)?([A-Za-z_@][\w@:]+)\s*\(([^)]*)\)/;
 const defineRegex = /^#define\s+([A-Za-z_@][\w@]*)(?:\(([^)]*)\))?\s*(.*)/;
 const globalVarRegex = /^\s*(new|static|const|public)\s+([A-Za-z_@][\w@:]+)\s*\[?/;
-let docComment = "";
 const taskFunctions = new Set(['set_task', 'set_task_ex', 'register_clcmd', 'register_concmd', 'register_srvcmd']);
 
 const pawnKeywords = [
@@ -47,27 +46,44 @@ function findIdentifierAtCursor(content: string, cursorIndex: number): { identif
     return result;
 }
 
-function handleComments(lineContent: string): string {
-    const singleCommentIndex = lineContent.indexOf('//');
-    if (singleCommentIndex >= 0) lineContent = lineContent.substring(0, singleCommentIndex);
-    docComment = "";
-    return lineContent.trim();
-}
-
 export function parse(fileUri: URI, content: string, skipStatic: boolean): Types.ParserResults {
     const results = new Types.ParserResults();
     let bracketDepth = 0;
     const lines = content.split(/\r?\n/);
+    let docComment = ""; 
 
-    lines.forEach((originalLine, lineIndex) => {
-        const lineContent = handleComments(originalLine);
-        if (!lineContent) return;
+    // **CORREÇÃO**: Trocado para um loop 'for' padrão para controlar o índice.
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const originalLine = lines[lineIndex];
+        const trimmedLine = originalLine.trim();
+
+        if (trimmedLine.startsWith('/**') && !trimmedLine.startsWith('/***')) {
+            docComment = ''; // Inicia um novo doc-comment
+            for (let i = lineIndex; i < lines.length; i++) {
+                const commentLine = lines[i];
+                const cleanedLine = commentLine.replace(/^\s*\/\*\*?/, '').replace(/\*\/$/, '').replace(/^\s*\*/, '').trim();
+                docComment += cleanedLine + '\n';
+                if (commentLine.trim().endsWith('*/')) {
+                    lineIndex = i; // Pula o índice do loop para depois do bloco de comentário
+                    break;
+                }
+            }
+            continue; // Continua para a próxima linha do loop principal
+        }
+
+        const lineContent = trimmedLine.replace(/\/\/.*/, '').trim();
+        if (!lineContent) {
+            if (!trimmedLine.includes('*/')) { // Não apague o docComment se a linha for o fim de um bloco
+               docComment = ""; 
+            }
+            continue;
+        }
 
         const openBraces = (lineContent.match(/{/g) || []).length;
         const closeBraces = (lineContent.match(/}/g) || []).length;
         if (bracketDepth > 0) {
             bracketDepth += openBraces - closeBraces;
-            return;
+            continue;
         }
 
         if (lineContent.startsWith('#include') || lineContent.startsWith('#tryinclude')) {
@@ -100,25 +116,27 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
         } else {
             const callableMatch = lineContent.match(callableDefinitionRegex);
             if (callableMatch) {
-                const [, specifier, tag, identifier, params] = callableMatch;
-                const isForward = (specifier === 'forward' || specifier === 'native');
-                if (skipStatic && specifier === 'static') return;
+                const [, specifier, fullIdentifier, params] = callableMatch;
+                const identifier = (fullIdentifier || '').split(':').pop() || '';
+                if (!identifier) continue;
                 
                 const newCallable: Types.CallableDescriptor = {
-                    label: callableMatch[0].trim(), identifier, file: fileUri,
+                    label: callableMatch[0].trim(),
+                    identifier, file: fileUri,
                     start: { line: lineIndex, character: originalLine.indexOf(identifier) },
                     end: { line: lineIndex, character: originalLine.indexOf(identifier) + identifier.length },
                     parameters: params ? params.split(',').map(p => ({ label: p.trim() })) : [],
-                    documentaton: docComment, isForward
+                    documentaton: docComment.trim(),
+                    isForward: specifier === 'forward' || specifier === 'native'
                 };
 
-                const existingCallableIndex = results.callables.findIndex(c => c.identifier === identifier);
+                const existingCallableIndex = results.callables.findIndex(c => c.identifier.toLowerCase() === identifier.toLowerCase());
                 if (existingCallableIndex === -1) {
-
-                    results.callables.push(newCallable);
+                    if (!(skipStatic && specifier === 'static')) {
+                        results.callables.push(newCallable);
+                    }
                 } else {
                     const existingCallable = results.callables[existingCallableIndex];
-
                     if (newCallable.isForward && !existingCallable.isForward) {
                         results.callables[existingCallableIndex] = newCallable;
                     }
@@ -131,14 +149,16 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                         results.values.push({
                             label: lineContent, identifier, isConst: lineContent.includes('const'), file: fileUri,
                             range: { start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length } },
-                            documentaton: docComment
+                            documentaton: docComment.trim()
                         });
                     }
                 }
             }
         }
+        
+        docComment = "";
         bracketDepth += openBraces - closeBraces;
-    });
+    }
     return results;
 }
 
@@ -156,7 +176,7 @@ export function doDefinition(
         if (position.character >= match.index + 1 && position.character <= match.index + 1 + stringContent.length) {
             for (const taskFn of taskFunctions) {
                 if (line.includes(`${taskFn}(`)) {
-                    const callable = symbols.callables.find(clb => clb.identifier === stringContent);
+                    const callable = symbols.callables.find(clb => clb.identifier.toLowerCase() === stringContent.toLowerCase());
                     if (callable) return VSCLS.Location.create(callable.file.toString(), VSCLS.Range.create(callable.start, callable.end));
                 }
             }
@@ -167,7 +187,9 @@ export function doDefinition(
     const result = findIdentifierAtCursor(content, cursorIndex);
     if (!result.identifier) return null;
 
-    const constant = symbols.constants.find(c => c.identifier === result.identifier);
+    const identifierLower = result.identifier.toLowerCase();
+
+    const constant = symbols.constants.find(c => c.identifier.toLowerCase() === identifierLower);
     if (constant) {
         if (position.line === constant.range.start.line) return null;
         return VSCLS.Location.create(constant.file.toString(), constant.range);
@@ -177,12 +199,12 @@ export function doDefinition(
     if (result.identifier.startsWith('@')) potentialIdentifiers.push(result.identifier.substring(1));
     else potentialIdentifiers.push('@' + result.identifier);
     
-    const callable = symbols.callables.find(clb => potentialIdentifiers.includes(clb.identifier));
+    const callable = symbols.callables.find(clb => potentialIdentifiers.some(id => id.toLowerCase() === clb.identifier.toLowerCase()));
     if (callable) {
         return VSCLS.Location.create(callable.file.toString(), VSCLS.Range.create(callable.start, callable.end));
     }
     
-    const value = symbols.values.find(val => potentialIdentifiers.includes(val.identifier));
+    const value = symbols.values.find(val => potentialIdentifiers.some(id => id.toLowerCase() === val.identifier.toLowerCase()));
     if (value) {
         if (position.line === value.range.start.line) return null;
         return VSCLS.Location.create(value.file.toString(), value.range);
@@ -298,12 +320,12 @@ export function doHover(
     if (result.identifier.startsWith('@')) idsToSearch.push(result.identifier.substring(1));
     else idsToSearch.push('@' + result.identifier);
 
-    const callable = symbols.callables.find(c => idsToSearch.includes(c.identifier));
+    const callable = symbols.callables.find(c => idsToSearch.some(id => id.toLowerCase() === c.identifier.toLowerCase()));
     if (callable) {
         return { contents: [{ language: 'amxxpawn', value: callable.label }, { language: 'pawndoc', value: callable.documentaton }] };
     }
     
-    const value = symbols.values.find(v => idsToSearch.includes(v.identifier));
+    const value = symbols.values.find(v => idsToSearch.some(id => id.toLowerCase() === v.identifier.toLowerCase()));
     if (value && position.line !== value.range.start.line) {
         return { contents: [{ language: 'amxxpawn', value: value.label }, { language: 'pawndoc', value: value.documentaton }] };
     }
@@ -318,7 +340,7 @@ export function doSignatures(content: string, position: VSCLS.Position, callable
         return null;
     }
     
-    const callable = callables.find(c => c.identifier === result.identifier);
+    const callable = callables.find(c => c.identifier.toLowerCase() === result.identifier.toLowerCase());
     
     if (!callable) {
         return null;

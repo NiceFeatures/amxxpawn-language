@@ -1,5 +1,4 @@
 ---
-
 ## layout: default
 
 # AMXXPawn Language Service for Visual Studio Code
@@ -9,6 +8,17 @@
 This project revives and modernizes the development experience for **AMX Mod X** scripters. If you love creating plugins for Half-Life, Counter-Strike 1.6, and other GoldSrc mods but miss modern tools, this extension is for you.
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
+
+## ✨ What's New (v1.1.8)
+
+### Fixed
+- Corrigido um bug crítico onde o `Ctrl+Click` (`Ir para Definição`) não funcionava em funções que utilizavam uma tag (ex: `bool:IsVip(id)`).
+- *Fixed a critical bug where `Ctrl+Click` (Go to Definition) did not work on functions using a tag (e.g., `bool:IsVip(id)`).*
+### Added
+- A funcionalidade de *hover* agora exibe a documentação completa da função (comentários `/** ... */`) em vez de apenas a sua assinatura.
+- *Hover feature now displays the full function documentation (`/** ... */` comments) instead of just its signature.*
+
+---
 
 ## ✨ What's New (v1.1.7)
 
@@ -21,7 +31,7 @@ It transforms VS Code into a powerful IDE for Pawn, bringing features that were 
 This extension goes far beyond simple syntax highlighting. It offers a complete **Language Server** with:
 
 - **Advanced IntelliSense:** Autocomplete for functions, constants, and variables.
-- **Smart Code Navigation (**\`\`**):** Press `Ctrl+Click` to instantly jump to the definition of:
+- **Smart Code Navigation (**``**):** Press `Ctrl+Click` to instantly jump to the definition of:
   - Functions (including `public`, `stock`, `native`, and those with an `@` prefix).
   - Constants defined with `#define`.
   - Global variables.
@@ -92,11 +102,11 @@ This project is a modernization of a legacy codebase, now using TypeScript and t
 
 **To compile and test locally:**
 
-1. Clone the repository:\
+1. Clone the repository:  
    `git clone https://github.com/NiceFeatures/amxxpawn-language.git`
-2. Install dependencies:\
+2. Install dependencies:  
    `npm install`
-3. Compile the project:\
+3. Compile the project:  
    `npm run compile`
 4. Open the project in VS Code and press `F5` to start a debugging session.
 
@@ -107,4 +117,3 @@ This project is a continuation and modernization of the incredible work original
 ## 📄 License
 
 This project is licensed under the **GPL-3.0**. See the `LICENSE` file for more details.
-
