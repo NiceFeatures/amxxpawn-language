@@ -5,6 +5,11 @@
 
 ---
 
+<p align="center">
+  <a href="/amxxpawn-language/">Página Inicial</a> | 
+  <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
+</p>
+
 This project revives and modernizes the development experience for **AMX Mod X** scripters. If you love creating plugins for Half-Life, Counter-Strike 1.6, and other GoldSrc mods but miss modern tools, this extension is for you.
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
