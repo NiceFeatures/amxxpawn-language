@@ -52,28 +52,27 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
     const lines = content.split(/\r?\n/);
     let docComment = ""; 
 
-    // **CORREÇÃO**: Trocado para um loop 'for' padrão para controlar o índice.
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const originalLine = lines[lineIndex];
         const trimmedLine = originalLine.trim();
 
         if (trimmedLine.startsWith('/**') && !trimmedLine.startsWith('/***')) {
-            docComment = ''; // Inicia um novo doc-comment
+            docComment = '';
             for (let i = lineIndex; i < lines.length; i++) {
                 const commentLine = lines[i];
                 const cleanedLine = commentLine.replace(/^\s*\/\*\*?/, '').replace(/\*\/$/, '').replace(/^\s*\*/, '').trim();
                 docComment += cleanedLine + '\n';
                 if (commentLine.trim().endsWith('*/')) {
-                    lineIndex = i; // Pula o índice do loop para depois do bloco de comentário
+                    lineIndex = i;
                     break;
                 }
             }
-            continue; // Continua para a próxima linha do loop principal
+            continue;
         }
 
         const lineContent = trimmedLine.replace(/\/\/.*/, '').trim();
         if (!lineContent) {
-            if (!trimmedLine.includes('*/')) { // Não apague o docComment se a linha for o fim de um bloco
+            if (!trimmedLine.includes('*/')) {
                docComment = ""; 
             }
             continue;
@@ -213,12 +212,9 @@ export function doDefinition(
 }
 
 function findIdentifierBehindCursor(content: string, cursorIndex: number): string {
-    let index = cursorIndex - 1, identifier = '';
-    while (index >= 0 && StringHelpers.isAlphaNum(content[index])) {
-        identifier = content[index] + identifier;
-        index--;
-    }
-    return identifier;
+    const textBeforeCursor = content.substring(0, cursorIndex);
+    const match = textBeforeCursor.match(/[\w@]+$/);
+    return match ? match[0] : '';
 }
 
 export function doCompletions(
@@ -229,40 +225,36 @@ export function doCompletions(
     dependenciesData: WeakMap<DM.FileDependency, Types.DocumentData>
 ): VSCLS.CompletionItem[] | null {
 
-    const lineText = content.split('\n')[position.line];
-    const linePrefix = lineText.substring(0, position.character);
-    const openParenIndex = linePrefix.lastIndexOf('(');
-    const closeParenIndex = linePrefix.lastIndexOf(')');
-
-    if (openParenIndex > closeParenIndex) {
-        return [];
-    }
-
-    const cursorIndex = positionToIndex(content, position);
-    const identifier = findIdentifierBehindCursor(content, cursorIndex);
-    
-    if (identifier.length === 0) {
-        return null;
-    }
-    
     const { values, callables, constants } = Helpers.getSymbols(data, dependenciesData);
-    const lowerIdentifier = identifier.toLowerCase();
     const allItems: VSCLS.CompletionItem[] = [];
-
+    
     pawnKeywords.forEach(keyword => {
-        if (keyword.toLowerCase().startsWith(lowerIdentifier)) {
-            allItems.push({ label: keyword, kind: VSCLS.CompletionItemKind.Keyword });
-        }
+        allItems.push({ label: keyword, kind: VSCLS.CompletionItemKind.Keyword });
     });
 
-    constants.filter(c => c.identifier.toLowerCase().startsWith(lowerIdentifier))
-        .forEach(c => allItems.push({ label: c.identifier, detail: c.label, kind: VSCLS.CompletionItemKind.Constant }));
+    constants.forEach(c => {
+        allItems.push({ label: c.identifier, detail: c.label, kind: VSCLS.CompletionItemKind.Constant });
+    });
     
-    values.filter(v => v.identifier.toLowerCase().startsWith(lowerIdentifier))
-        .forEach(v => allItems.push({ label: v.identifier, detail: v.label, kind: v.isConst ? VSCLS.CompletionItemKind.Constant : VSCLS.CompletionItemKind.Variable, insertText: v.identifier.startsWith('@') ? v.identifier.substring(1) : v.identifier, documentation: v.documentaton }));
+    values.forEach(v => {
+        allItems.push({ 
+            label: v.identifier, 
+            detail: v.label, 
+            kind: v.isConst ? VSCLS.CompletionItemKind.Constant : VSCLS.CompletionItemKind.Variable, 
+            insertText: v.identifier.startsWith('@') ? v.identifier.substring(1) : v.identifier, 
+            documentation: v.documentaton 
+        });
+    });
         
-    callables.filter(c => c.identifier.toLowerCase().startsWith(lowerIdentifier))
-        .forEach(c => allItems.push({ label: c.identifier, detail: c.label, kind: VSCLS.CompletionItemKind.Function, insertText: c.identifier.startsWith('@') ? c.identifier.substring(1) : c.identifier, documentation: c.documentaton }));
+    callables.forEach(c => {
+        allItems.push({ 
+            label: c.identifier, 
+            detail: c.label, 
+            kind: VSCLS.CompletionItemKind.Function, 
+            insertText: c.identifier.startsWith('@') ? c.identifier.substring(1) : c.identifier, 
+            documentation: c.documentaton 
+        });
+    });
 
     return allItems;
 }

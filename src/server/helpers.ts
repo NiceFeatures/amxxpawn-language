@@ -33,7 +33,7 @@ function getSymbolsImpl(
         // --- INÍCIO DA LÓGICA CORRIGIDA ---
         // Para cada função ('callable') vinda de uma dependência...
         results.callables.forEach(newCallable => {
-            const existingIndex = symbols.callables.findIndex(c => c.identifier === newCallable.identifier);
+            const existingIndex = symbols.callables.findIndex(c => c.identifier.toLowerCase() === newCallable.identifier.toLowerCase());
 
             if (existingIndex === -1) {
                 // Se a função não existe na nossa lista, apenas a adicionamos.
