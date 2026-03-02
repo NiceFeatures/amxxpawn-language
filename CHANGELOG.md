@@ -7,6 +7,15 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.2.1] - 2026-03-02
+### Added
+- Adicionado suporte a **Inglês** e **Português (PT-BR)**. A extensão agora exibe todas as mensagens, descrições de configuração e saída do compilador no idioma do VS Code do usuário.
+- *Added **English** and **Portuguese (PT-BR)** support. The extension now displays all messages, configuration descriptions, and compiler output in the user's VS Code language.*
+- Adicionado **Semantic Tokens Provider**: funções, macros (`#define`), variáveis, constantes e valores de `enum` agora são destacados com cores diferentes no editor, de acordo com o tema de cores utilizado.
+- *Added **Semantic Tokens Provider**: functions, macros (`#define`), variables, constants, and `enum` values are now highlighted with different colors in the editor, based on the active color theme.*
+
+---
+
 ## [Version 1.2.0] - 2026-03-02
 ### Added
 - Adicionado suporte a `enum`: valores de enums agora aparecem no Autocomplete e no `Ctrl+Click` (Ir para Definição).

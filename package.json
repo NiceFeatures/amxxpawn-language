@@ -1,8 +1,8 @@
 {
     "name": "amxx-pawn-language-editor",
-    "displayName": "AMXXPawn Language iceeedR",
-    "description": "AMXXPawn Language Service",
-    "version": "1.2.0",
+    "displayName": "%extension.displayName%",
+    "description": "%extension.description%",
+    "version": "1.2.1",
     "publisher": "iceeedR",
     "license": "GPL-3.0",
     "icon": "images/extension-logo.png",
@@ -37,6 +37,7 @@
     ],
     "activationEvents": [],
     "main": "./build/client/client",
+    "l10n": "./l10n",
     "contributes": {
         "languages": [
             {
@@ -86,47 +87,47 @@
         "configuration": {
             "id": "amxxpawn",
             "type": "object",
-            "title": "AMXXPawn Configuration",
+            "title": "%configuration.title%",
             "properties": {
                 "amxxpawn.language.reparseInterval": {
                     "type": "number",
                     "default": 1500,
-                    "description": "The shortest allowed interval between two syntax re-parses of the same file"
+                    "description": "%configuration.language.reparseInterval.description%"
                 },
                 "amxxpawn.language.webApiLinks": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Should #include statements that contain filenames from AMXX package link to the Web API Reference"
+                    "description": "%configuration.language.webApiLinks.description%"
                 },
                 "amxxpawn.compiler.executablePath": {
                     "type": "string",
                     "default": "",
-                    "description": "Compiler location"
+                    "description": "%configuration.compiler.executablePath.description%"
                 },
                 "amxxpawn.compiler.includePaths": {
                     "type": "array",
                     "default": [],
-                    "description": "An array of strings containing include paths for the compiler"
+                    "description": "%configuration.compiler.includePaths.description%"
                 },
                 "amxxpawn.compiler.options": {
                     "type": "array",
                     "default": [],
-                    "description": "An array of additional options that should be passed to the compiler"
+                    "description": "%configuration.compiler.options.description%"
                 },
                 "amxxpawn.compiler.showInfoMessages": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Shows additional information like command arguments and exit code when compiling"
+                    "description": "%configuration.compiler.showInfoMessages.description%"
                 },
                 "amxxpawn.compiler.reformatOutput": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Should amxxpc output be reformatted to make it more readable"
+                    "description": "%configuration.compiler.reformatOutput.description%"
                 },
                 "amxxpawn.compiler.outputType": {
                     "type": "string",
                     "default": "source",
-                    "description": "Where should .amxx files be output. Can be:\n - 'source' (same as input)\n - 'path' (specified in amxxpawn.compiler.outputPath setting)",
+                    "description": "%configuration.compiler.outputType.description%",
                     "enum": [
                         "source",
                         "path"
@@ -135,25 +136,25 @@
                 "amxxpawn.compiler.outputPath": {
                     "type": "string",
                     "default": "",
-                    "description": "If amxx.compiler.outputType is set to 'path', then use this path to output .amxx files"
+                    "description": "%configuration.compiler.outputPath.description%"
                 },
                 "amxxpawn.compiler.switchToOutput": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Switch to 'Output' tab on build"
+                    "description": "%configuration.compiler.switchToOutput.description%"
                 }
             }
         },
         "commands": [
             {
                 "command": "amxxpawn.compile",
-                "title": "Compile Plugin",
-                "category": "AMXXPawn"
+                "title": "%command.compile.title%",
+                "category": "%command.category%"
             },
             {
                 "command": "amxxpawn.compileLocal",
-                "title": "Compile Plugin Local",
-                "category": "AMXXPawn"
+                "title": "%command.compileLocal.title%",
+                "category": "%command.category%"
             }
         ],
         "keybindings": [

@@ -109,16 +109,45 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                         parameters: params ? params.split(',').map(p => ({ label: p.trim() })) : [],
                         documentation: `Macro: ${lineContent}`, isForward: false
                     });
+                    // Semantic: macro declaration
+                    const macroCol = originalLine.indexOf(identifier);
+                    if (macroCol >= 0) {
+                        results.semanticTokens.push({
+                            line: lineIndex, char: macroCol, length: identifier.length,
+                            tokenType: 1, tokenModifiers: 1 // macro, readonly
+                        });
+                    }
                 } else {
                     results.constants.push({
                         identifier, value: value.trim(), label: `#define ${identifier} ${value.trim()}`, file: fileUri,
                         range: { start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length } }
                     });
+                    // Semantic: constant (readonly)
+                    const constCol = originalLine.indexOf(identifier);
+                    if (constCol >= 0) {
+                        results.semanticTokens.push({
+                            line: lineIndex, char: constCol, length: identifier.length,
+                            tokenType: 2, tokenModifiers: 1 // variable, readonly
+                        });
+                    }
                 }
             }
-        } else if (enumRegex.test(lineContent)) {
-            // --- Fix #16: Parse enum values como constantes ---
-            const enumNameMatch = lineContent.match(/^\s*enum\s+(?:([A-Za-z_@][\w@:]*)\s*)?{/);
+        } else if (lineContent.startsWith('enum')) {
+            // Semantic: enum keyword
+            results.semanticTokens.push({
+                line: lineIndex, char: originalLine.indexOf('enum'), length: 4,
+                tokenType: 5, tokenModifiers: 0 // keyword
+            });
+
+            const enumNameMatch = lineContent.match(/^enum\s+(?:([A-Za-z_@][\w@:]*)\s*)?{?|enum\s+\([^)]+\)\s*{?/);
+            const enumName = enumNameMatch?.[1];
+            if (enumName && enumName !== '{') {
+                const nameCol = originalLine.indexOf(enumName);
+                results.semanticTokens.push({
+                    line: lineIndex, char: nameCol, length: enumName.length,
+                    tokenType: 6, tokenModifiers: 0 // type
+                });
+            }
 
             // Coleta linhas do enum até encontrar }
             if (!lineContent.includes('}')) {
@@ -126,18 +155,38 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     const eline = lines[ei].trim().replace(/\/\/.*/, '').trim();
                     if (!eline) continue;
 
-                    // Extrai valores do enum
-                    const valueMatch = eline.match(/^([A-Za-z_@][\w@]*)/);
+                    // Extrai valores do enum: suporta Tag:Identifier, Identifier[Size], Identifier = Value
+                    const valueMatch = eline.match(/^(?:([A-Za-z_@][\w@]*):)?([A-Za-z_@][\w@]*)/);
                     if (valueMatch) {
-                        const enumVal = valueMatch[1];
-                        if (enumVal !== '}') {
+                        const tagName = valueMatch[1];
+                        const enumVal = valueMatch[2];
+
+                        if (enumVal !== '}' && !pawnKeywords.includes(enumVal)) {
                             results.constants.push({
                                 identifier: enumVal,
                                 value: '',
-                                label: `enum ${enumNameMatch?.[1] || ''} { ..., ${enumVal}, ... }`,
+                                label: `enum ${enumName || ''} { ..., ${tagName ? tagName + ':' : ''}${enumVal}, ... }`,
                                 file: fileUri,
                                 range: { start: { line: ei, character: 0 }, end: { line: ei, character: lines[ei].length } }
                             });
+
+                            // Semantic: tag (se existir)
+                            if (tagName) {
+                                const tagCol = lines[ei].indexOf(tagName);
+                                results.semanticTokens.push({
+                                    line: ei, char: tagCol, length: tagName.length,
+                                    tokenType: 6, tokenModifiers: 0 // type
+                                });
+                            }
+
+                            // Semantic: enum member
+                            const enumCol = lines[ei].indexOf(enumVal, tagName ? lines[ei].indexOf(':') : 0);
+                            if (enumCol >= 0) {
+                                results.semanticTokens.push({
+                                    line: ei, char: enumCol, length: enumVal.length,
+                                    tokenType: 3, tokenModifiers: 1 // enumMember, readonly
+                                });
+                            }
                         }
                     }
 
@@ -149,7 +198,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
             }
         } else {
             const callableMatch = lineContent.match(callableDefinitionRegex);
-            if (callableMatch) {
+            if (callableMatch && callableMatch[2] !== 'enum') {
                 const [, specifier, fullIdentifier, params] = callableMatch;
                 const identifier = (fullIdentifier || '').split(':').pop() || '';
                 if (!identifier) continue;
@@ -163,6 +212,17 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     documentation: docComment.trim(),
                     isForward: specifier === 'forward' || specifier === 'native'
                 };
+
+                // Semantic: function declaration
+                const fnCol = originalLine.indexOf(identifier);
+                if (fnCol >= 0) {
+                    let modifiers = 1; // declaration
+                    if (specifier === 'static') modifiers |= 4; // static
+                    results.semanticTokens.push({
+                        line: lineIndex, char: fnCol, length: identifier.length,
+                        tokenType: 0, tokenModifiers: modifiers // function
+                    });
+                }
 
                 const existingCallableIndex = results.callables.findIndex(c => c.identifier.toLowerCase() === identifier.toLowerCase());
                 if (existingCallableIndex === -1) {
@@ -180,11 +240,24 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                 if (varMatch) {
                     const identifier = (varMatch[2] || '').split(':').pop() || '';
                     if (identifier && !results.values.find(v => v.identifier === identifier)) {
+                        const isConst = lineContent.includes('const');
+                        const isStatic = varMatch[1] === 'static';
                         results.values.push({
-                            label: lineContent, identifier, isConst: lineContent.includes('const'), file: fileUri,
+                            label: lineContent, identifier, isConst, file: fileUri,
                             range: { start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length } },
                             documentation: docComment.trim()
                         });
+                        // Semantic: variable declaration
+                        const varCol = originalLine.indexOf(identifier);
+                        if (varCol >= 0) {
+                            let modifiers = 1; // declaration
+                            if (isConst) modifiers |= 2; // readonly
+                            if (isStatic) modifiers |= 4; // static
+                            results.semanticTokens.push({
+                                line: lineIndex, char: varCol, length: identifier.length,
+                                tokenType: 2, tokenModifiers: modifiers // variable
+                            });
+                        }
                     }
                 }
             }

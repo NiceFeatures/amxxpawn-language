@@ -1,0 +1,18 @@
+{
+        "extension.displayName": "AMXXPawn Language Service",
+        "extension.description": "AMXXPawn Language Service",
+        "configuration.title": "AMXXPawn Configuration",
+        "configuration.language.reparseInterval.description": "The shortest allowed interval between two syntax re-parses of the same file",
+        "configuration.language.webApiLinks.description": "Should #include statements that contain filenames from the AMXX package link to the Web API Reference",
+        "configuration.compiler.executablePath.description": "Compiler location",
+        "configuration.compiler.includePaths.description": "An array of strings containing include paths for the compiler",
+        "configuration.compiler.options.description": "An array of additional options that should be passed to the compiler",
+        "configuration.compiler.showInfoMessages.description": "Shows additional information like command arguments and exit code when compiling",
+        "configuration.compiler.reformatOutput.description": "Should amxxpc output be reformatted to make it more readable",
+        "configuration.compiler.outputType.description": "Where should .amxx files be output. Can be:\n - 'source' (same as input)\n - 'path' (specified in amxxpawn.compiler.outputPath setting)",
+        "configuration.compiler.outputPath.description": "If amxxpawn.compiler.outputType is set to 'path', then use this path to output .amxx files",
+        "configuration.compiler.switchToOutput.description": "Switch to 'Output' tab on build",
+        "command.category": "AMXXPawn",
+        "command.compile.title": "Compile Plugin",
+        "command.compileLocal.title": "Compile Plugin Local"
+}

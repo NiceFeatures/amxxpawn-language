@@ -23,7 +23,8 @@ import {
     DidChangeConfigurationNotification,
     DocumentLinkParams,
     Range,
-    FileChangeType
+    FileChangeType,
+    SemanticTokensBuilder
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI } from 'vscode-uri';
@@ -63,7 +64,14 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
             signatureHelpProvider: { triggerCharacters: ['(', ','] },
             documentSymbolProvider: true,
             completionProvider: { resolveProvider: false, triggerCharacters: ['(', ',', '=', '@'] },
-            hoverProvider: true
+            hoverProvider: true,
+            semanticTokensProvider: {
+                full: true,
+                legend: {
+                    tokenTypes: [...Types.SemanticTokenTypes],
+                    tokenModifiers: [...Types.SemanticTokenModifiers]
+                }
+            }
         }
     };
 });
@@ -400,7 +408,37 @@ function parseFile(fileUri: URI, content: string, data: Types.DocumentData, diag
     data.callables = results.callables;
     data.values = results.values;
     data.constants = results.constants;
+    data.semanticTokens = results.semanticTokens;
 }
+
+// --- Semantic Tokens Provider ---
+connection.languages.semanticTokens.on((params) => {
+    const document = documentsManager.get(params.textDocument.uri);
+    if (!document) return { data: [] };
+
+    const data = documentsData.get(document.uri);
+    if (!data) return { data: [] };
+
+    const builder = new SemanticTokensBuilder();
+
+    // Tokens devem ser ordenados por posição (linha, coluna)
+    const sortedTokens = [...data.semanticTokens].sort((a, b) => {
+        if (a.line !== b.line) return a.line - b.line;
+        return a.char - b.char;
+    });
+
+    for (const token of sortedTokens) {
+        builder.push(
+            token.line,
+            token.char,
+            token.length,
+            token.tokenType,
+            token.tokenModifiers
+        );
+    }
+
+    return builder.build();
+});
 
 documentsManager.listen(connection);
 connection.listen();

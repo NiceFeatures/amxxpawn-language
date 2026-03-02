@@ -45,12 +45,39 @@ export interface ConstantDescriptor {
     range: VSCLS.Range;
 }
 
+// --- Semantic Tokens ---
+export const SemanticTokenTypes = [
+    'function',     // 0
+    'macro',        // 1
+    'variable',     // 2
+    'enumMember',   // 3
+    'parameter',    // 4
+    'keyword',      // 5
+    'type',         // 6
+] as const;
+
+export const SemanticTokenModifiers = [
+    'declaration',  // 0
+    'readonly',     // 1
+    'static',       // 2
+    'definition',   // 3
+] as const;
+
+export interface SemanticToken {
+    line: number;
+    char: number;
+    length: number;
+    tokenType: number;
+    tokenModifiers: number;
+}
+
 export class ParserResults {
     public headerInclusions: InclusionDescriptor[] = [];
     public callables: CallableDescriptor[] = [];
     public values: ValueDescriptor[] = [];
     public diagnostics: VSCLS.Diagnostic[] = [];
     public constants: ConstantDescriptor[] = [];
+    public semanticTokens: SemanticToken[] = [];
 }
 
 export class DocumentData {
@@ -61,6 +88,7 @@ export class DocumentData {
     public values: ValueDescriptor[] = [];
     public constants: ConstantDescriptor[] = [];
     public dependencies: DM.FileDependency[] = [];
+    public semanticTokens: SemanticToken[] = [];
 
     constructor(uri: string) {
         this.uri = uri;

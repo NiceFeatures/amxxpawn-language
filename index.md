@@ -14,6 +14,15 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.2.1)
+### Added
+- Suporte a **Inglês** e **Português (PT-BR)**. Mensagens, configurações e saída do compilador seguem o idioma do VS Code.
+- *Added **English** and **Portuguese (PT-BR)** support. Messages, settings, and compiler output follow the VS Code language.*
+- **Semantic Tokens**: funções, macros, variáveis, constantes e enums são destacados com cores distintas no editor.
+- *Functions, macros, variables, constants, and enums are now highlighted with distinct colors in the editor.*
+
+---
+
 ## ✨ What's New (v1.2.0)
 ### Added
 - Adicionado suporte a `enum`: valores de enums agora aparecem no Autocomplete e no `Ctrl+Click` (Ir para Definição).
