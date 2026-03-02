@@ -1,0 +1,40 @@
+name: Release AMXX Pawn Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write 
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Compilar extensão
+        run: npm run compile
+
+      - name: Instalar VSCE globalmente
+        run: npm install -g @vscode/vsce
+
+      - name: Empacotar extensão (.vsix)
+        run: vsce package
+
+      - name: Criar Release e Fazer Upload
+        uses: softprops/action-gh-release@v2
+        with:
+          files: '*.vsix'
+          generate_release_notes: true
