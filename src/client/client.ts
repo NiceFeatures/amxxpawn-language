@@ -30,7 +30,7 @@ export function activate(ctx: VSC.ExtensionContext) {
         documentSelector: [{ scheme: 'file', language: 'amxxpawn' }],
         synchronize: {
             configurationSection: 'amxxpawn',
-            fileEvents: VSC.workspace.createFileSystemWatcher('**/*.*')
+            fileEvents: VSC.workspace.createFileSystemWatcher('**/*.{sma,inc}')
         }
     };
 

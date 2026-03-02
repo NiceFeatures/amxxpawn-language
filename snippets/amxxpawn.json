@@ -1,3 +1,337 @@
 {
-    
+        "Plugin Base": {
+                "prefix": "plugin",
+                "body": [
+                        "#include <amxmodx>",
+                        "#include <amxmisc>",
+                        "",
+                        "#define PLUGIN  \"${1:Plugin Name}\"",
+                        "#define VERSION \"${2:1.0}\"",
+                        "#define AUTHOR  \"${3:Author}\"",
+                        "",
+                        "public plugin_init() {",
+                        "\tregister_plugin(PLUGIN, VERSION, AUTHOR)",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "Creates a basic AMX Mod X plugin skeleton"
+        },
+        "Plugin Init": {
+                "prefix": "plugin_init",
+                "body": [
+                        "public plugin_init() {",
+                        "\tregister_plugin(PLUGIN, VERSION, AUTHOR)",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "public plugin_init()"
+        },
+        "Plugin Cfg": {
+                "prefix": "plugin_cfg",
+                "body": [
+                        "public plugin_cfg() {",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "public plugin_cfg()"
+        },
+        "Plugin Precache": {
+                "prefix": "plugin_precache",
+                "body": [
+                        "public plugin_precache() {",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "public plugin_precache()"
+        },
+        "Plugin Natives": {
+                "prefix": "plugin_natives",
+                "body": [
+                        "public plugin_natives() {",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "public plugin_natives()"
+        },
+        "Plugin End": {
+                "prefix": "plugin_end",
+                "body": [
+                        "public plugin_end() {",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "public plugin_end()"
+        },
+        "Public Function": {
+                "prefix": "public",
+                "body": [
+                        "public ${1:function_name}(${2:id}) {",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "Public function"
+        },
+        "Stock Function": {
+                "prefix": "stock",
+                "body": [
+                        "stock ${1:function_name}(${2:id}) {",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "Stock function"
+        },
+        "Forward": {
+                "prefix": "forward",
+                "body": [
+                        "forward ${1:function_name}(${2:params});"
+                ],
+                "description": "Forward declaration"
+        },
+        "Native": {
+                "prefix": "native",
+                "body": [
+                        "native ${1:function_name}(${2:params});"
+                ],
+                "description": "Native declaration"
+        },
+        "Register Clcmd": {
+                "prefix": "register_clcmd",
+                "body": [
+                        "register_clcmd(\"${1:say /cmd}\", \"${2:handler_function}\")"
+                ],
+                "description": "Register a client command"
+        },
+        "Register Concmd": {
+                "prefix": "register_concmd",
+                "body": [
+                        "register_concmd(\"${1:amx_cmd}\", \"${2:handler_function}\", ${3:ADMIN_ALL}, \"${4:description}\")"
+                ],
+                "description": "Register a console command with admin flags"
+        },
+        "Register Event": {
+                "prefix": "register_event",
+                "body": [
+                        "register_event(\"${1:DeathMsg}\", \"${2:handler_function}\", \"${3:a}\")"
+                ],
+                "description": "Register an event"
+        },
+        "Register Logevent": {
+                "prefix": "register_logevent",
+                "body": [
+                        "register_logevent(\"${1:handler_function}\", ${2:2}, \"${3:1=Round_End}\")"
+                ],
+                "description": "Register a log event"
+        },
+        "Register Message": {
+                "prefix": "register_message",
+                "body": [
+                        "register_message(get_user_msgid(\"${1:StatusIcon}\"), \"${2:handler_function}\")"
+                ],
+                "description": "Register a message handler"
+        },
+        "Register Cvar": {
+                "prefix": "register_cvar",
+                "body": [
+                        "register_cvar(\"${1:cvar_name}\", \"${2:default_value}\")"
+                ],
+                "description": "Register a cvar"
+        },
+        "Set Task": {
+                "prefix": "set_task",
+                "body": [
+                        "set_task(${1:1.0}, \"${2:task_function}\", ${3:id})"
+                ],
+                "description": "Set a delayed task"
+        },
+        "Set Task Ex": {
+                "prefix": "set_task_ex",
+                "body": [
+                        "set_task(${1:1.0}, \"${2:task_function}\", ${3:id}, .flags = SetTask_${4|Once,RepeatTimes,AfterMapChange|})"
+                ],
+                "description": "Set a task with extended flags"
+        },
+        "Enum": {
+                "prefix": "enum",
+                "body": [
+                        "enum ${1:_:}${2:EnumName} {",
+                        "\t${3:VALUE_A} = 0,",
+                        "\t$0",
+                        "};"
+                ],
+                "description": "Enum declaration"
+        },
+        "For Loop": {
+                "prefix": "for",
+                "body": [
+                        "for (new ${1:i} = 0; ${1:i} < ${2:count}; ${1:i}++) {",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "For loop"
+        },
+        "For Players Loop": {
+                "prefix": "forplayers",
+                "body": [
+                        "for (new ${1:i} = 1; ${1:i} <= MaxClients; ${1:i}++) {",
+                        "\tif (!is_user_connected(${1:i}))",
+                        "\t\tcontinue;",
+                        "",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "Loop through all connected players"
+        },
+        "If Alive": {
+                "prefix": "ifalive",
+                "body": [
+                        "if (!is_user_alive(${1:id}))",
+                        "\treturn ${2:PLUGIN_HANDLED};",
+                        ""
+                ],
+                "description": "Check if player is alive"
+        },
+        "Client Connect": {
+                "prefix": "client_connect",
+                "body": [
+                        "public client_connect(id) {",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "public client_connect(id)"
+        },
+        "Client Disconnect": {
+                "prefix": "client_disconnect",
+                "body": [
+                        "public client_disconnect(id) {",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "public client_disconnect(id)"
+        },
+        "Client PutInServer": {
+                "prefix": "client_putinserver",
+                "body": [
+                        "public client_putinserver(id) {",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "public client_putinserver(id)"
+        },
+        "Formatex": {
+                "prefix": "formatex",
+                "body": [
+                        "new ${1:szBuffer}[${2:128}];",
+                        "formatex(${1:szBuffer}, charsmax(${1:szBuffer}), \"${3:format}\", ${0});"
+                ],
+                "description": "Format a string with formatex"
+        },
+        "Get User Name": {
+                "prefix": "get_user_name",
+                "body": [
+                        "new ${1:szName}[${2:32}];",
+                        "get_user_name(${3:id}, ${1:szName}, charsmax(${1:szName}));"
+                ],
+                "description": "Get player name into a buffer"
+        },
+        "Get User AuthID": {
+                "prefix": "get_user_authid",
+                "body": [
+                        "new ${1:szAuth}[${2:35}];",
+                        "get_user_authid(${3:id}, ${1:szAuth}, charsmax(${1:szAuth}));"
+                ],
+                "description": "Get player SteamID into a buffer"
+        },
+        "Get User IP": {
+                "prefix": "get_user_ip",
+                "body": [
+                        "new ${1:szIP}[${2:22}];",
+                        "get_user_ip(${3:id}, ${1:szIP}, charsmax(${1:szIP}), ${4:1});"
+                ],
+                "description": "Get player IP into a buffer"
+        },
+        "Menu Create": {
+                "prefix": "menu_create",
+                "body": [
+                        "new ${1:iMenu} = menu_create(\"${2:Menu Title}\", \"${3:menu_handler}\");",
+                        "",
+                        "menu_additem(${1:iMenu}, \"${4:Item 1}\");",
+                        "menu_additem(${1:iMenu}, \"${5:Item 2}\");",
+                        "$0",
+                        "",
+                        "menu_display(${6:id}, ${1:iMenu});"
+                ],
+                "description": "Create a new menu with items"
+        },
+        "Menu Handler": {
+                "prefix": "menu_handler",
+                "body": [
+                        "public ${1:menu_handler}(id, iMenu, iItem) {",
+                        "\tif (iItem == MENU_EXIT) {",
+                        "\t\tmenu_destroy(iMenu);",
+                        "\t\treturn PLUGIN_HANDLED;",
+                        "\t}",
+                        "",
+                        "\tswitch (iItem) {",
+                        "\t\tcase 0: {",
+                        "\t\t\t$0",
+                        "\t\t}",
+                        "\t}",
+                        "",
+                        "\tmenu_destroy(iMenu);",
+                        "\treturn PLUGIN_HANDLED;",
+                        "}"
+                ],
+                "description": "Menu handler function with switch"
+        },
+        "SQL Tuple": {
+                "prefix": "sql_tuple",
+                "body": [
+                        "new Handle:${1:g_hTuple};",
+                        "",
+                        "${1:g_hTuple} = SQL_MakeDbTuple(\"${2:host}\", \"${3:user}\", \"${4:pass}\", \"${5:db}\");"
+                ],
+                "description": "Create a SQL tuple for database connection"
+        },
+        "SQL Thread Query": {
+                "prefix": "sql_threadquery",
+                "body": [
+                        "new ${1:szQuery}[${2:512}];",
+                        "formatex(${1:szQuery}, charsmax(${1:szQuery}), \"${3:SELECT * FROM table}\");",
+                        "SQL_ThreadQuery(${4:g_hTuple}, \"${5:query_handler}\", ${1:szQuery});"
+                ],
+                "description": "Execute a threaded SQL query"
+        },
+        "SQL Handler": {
+                "prefix": "sql_handler",
+                "body": [
+                        "public ${1:query_handler}(iFailState, Handle:hQuery, szError[], iErrCode, szData[], iDataSize) {",
+                        "\tif (iFailState != TQUERY_SUCCESS) {",
+                        "\t\tlog_amx(\"SQL Error: %s (%d)\", szError, iErrCode);",
+                        "\t\treturn;",
+                        "\t}",
+                        "",
+                        "\t$0",
+                        "}"
+                ],
+                "description": "SQL threaded query handler"
+        },
+        "Ham Register": {
+                "prefix": "RegisterHam",
+                "body": [
+                        "RegisterHam(${1|Ham_Spawn,Ham_Killed,Ham_TakeDamage,Ham_TraceAttack,Ham_Touch,Ham_Think|}, \"${2:player}\", \"${3:handler_function}\", ${4|0,1|});"
+                ],
+                "description": "Register a Ham (Hamsandwich) forward"
+        },
+        "Doc Comment": {
+                "prefix": "/**",
+                "body": [
+                        "/**",
+                        " * ${1:Description}",
+                        " *",
+                        " * @param ${2:param}\t\t${3:description}",
+                        " * @return ${4:description}",
+                        " */"
+                ],
+                "description": "Documentation comment block"
+        }
 }

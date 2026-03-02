@@ -15,6 +15,7 @@ interface FindFunctionIdentifierResult {
 const callableDefinitionRegex = /^\s*(?:(forward|native|public|static|stock)\s+)?([A-Za-z_@][\w@:]+)\s*\(([^)]*)\)/;
 const defineRegex = /^#define\s+([A-Za-z_@][\w@]*)(?:\(([^)]*)\))?\s*(.*)/;
 const globalVarRegex = /^\s*(new|static|const|public)\s+([A-Za-z_@][\w@:]+)\s*\[?/;
+const enumRegex = /^\s*enum\s+(?:[A-Za-z_@][\w@:]*\s*)?{/;
 const taskFunctions = new Set(['set_task', 'set_task_ex', 'register_clcmd', 'register_concmd', 'register_srvcmd']);
 
 const pawnKeywords = [
@@ -24,10 +25,11 @@ const pawnKeywords = [
 ];
 
 function positionToIndex(content: string, position: VSCLS.Position): number {
-    const lines = content.split('\n');
     let index = 0;
-    for (let i = 0; i < position.line; i++) {
-        index += lines[i].length + 1;
+    let line = 0;
+    while (line < position.line && index < content.length) {
+        if (content[index] === '\n') line++;
+        index++;
     }
     return index + position.character;
 }
@@ -50,7 +52,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
     const results = new Types.ParserResults();
     let bracketDepth = 0;
     const lines = content.split(/\r?\n/);
-    let docComment = ""; 
+    let docComment = "";
 
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const originalLine = lines[lineIndex];
@@ -73,13 +75,15 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
         const lineContent = trimmedLine.replace(/\/\/.*/, '').trim();
         if (!lineContent) {
             if (!trimmedLine.includes('*/')) {
-               docComment = ""; 
+                docComment = "";
             }
             continue;
         }
 
-        const openBraces = (lineContent.match(/{/g) || []).length;
-        const closeBraces = (lineContent.match(/}/g) || []).length;
+        // Remove strings para não contar braces dentro delas
+        const noStrings = lineContent.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
+        const openBraces = (noStrings.match(/{/g) || []).length;
+        const closeBraces = (noStrings.match(/}/g) || []).length;
         if (bracketDepth > 0) {
             bracketDepth += openBraces - closeBraces;
             continue;
@@ -87,7 +91,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
 
         if (lineContent.startsWith('#include') || lineContent.startsWith('#tryinclude')) {
             const match = lineContent.match(/#\s*(?:try)?include\s*(?:<|")\s*(.+?)\s*(?:>|")/);
-            if (match && match[1]) {
+            if (match?.[1]) {
                 results.headerInclusions.push({
                     filename: match[1], isLocal: lineContent.includes('"'), isSilent: lineContent.startsWith('#tryinclude'),
                     start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length }
@@ -98,12 +102,12 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
             if (match) {
                 const [, identifier, params, value] = match;
                 if (params !== undefined) {
-                     results.callables.push({
+                    results.callables.push({
                         label: lineContent, identifier, file: fileUri,
                         start: { line: lineIndex, character: originalLine.indexOf(identifier) },
                         end: { line: lineIndex, character: originalLine.indexOf(identifier) + identifier.length },
                         parameters: params ? params.split(',').map(p => ({ label: p.trim() })) : [],
-                        documentaton: `Macro: ${lineContent}`, isForward: false
+                        documentation: `Macro: ${lineContent}`, isForward: false
                     });
                 } else {
                     results.constants.push({
@@ -112,20 +116,51 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     });
                 }
             }
+        } else if (enumRegex.test(lineContent)) {
+            // --- Fix #16: Parse enum values como constantes ---
+            const enumNameMatch = lineContent.match(/^\s*enum\s+(?:([A-Za-z_@][\w@:]*)\s*)?{/);
+
+            // Coleta linhas do enum até encontrar }
+            if (!lineContent.includes('}')) {
+                for (let ei = lineIndex + 1; ei < lines.length; ei++) {
+                    const eline = lines[ei].trim().replace(/\/\/.*/, '').trim();
+                    if (!eline) continue;
+
+                    // Extrai valores do enum
+                    const valueMatch = eline.match(/^([A-Za-z_@][\w@]*)/);
+                    if (valueMatch) {
+                        const enumVal = valueMatch[1];
+                        if (enumVal !== '}') {
+                            results.constants.push({
+                                identifier: enumVal,
+                                value: '',
+                                label: `enum ${enumNameMatch?.[1] || ''} { ..., ${enumVal}, ... }`,
+                                file: fileUri,
+                                range: { start: { line: ei, character: 0 }, end: { line: ei, character: lines[ei].length } }
+                            });
+                        }
+                    }
+
+                    if (eline.includes('}')) {
+                        lineIndex = ei;
+                        break;
+                    }
+                }
+            }
         } else {
             const callableMatch = lineContent.match(callableDefinitionRegex);
             if (callableMatch) {
                 const [, specifier, fullIdentifier, params] = callableMatch;
                 const identifier = (fullIdentifier || '').split(':').pop() || '';
                 if (!identifier) continue;
-                
+
                 const newCallable: Types.CallableDescriptor = {
                     label: callableMatch[0].trim(),
                     identifier, file: fileUri,
                     start: { line: lineIndex, character: originalLine.indexOf(identifier) },
                     end: { line: lineIndex, character: originalLine.indexOf(identifier) + identifier.length },
                     parameters: params ? params.split(',').map(p => ({ label: p.trim() })) : [],
-                    documentaton: docComment.trim(),
+                    documentation: docComment.trim(),
                     isForward: specifier === 'forward' || specifier === 'native'
                 };
 
@@ -148,13 +183,13 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                         results.values.push({
                             label: lineContent, identifier, isConst: lineContent.includes('const'), file: fileUri,
                             range: { start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length } },
-                            documentaton: docComment.trim()
+                            documentation: docComment.trim()
                         });
                     }
                 }
             }
         }
-        
+
         docComment = "";
         bracketDepth += openBraces - closeBraces;
     }
@@ -163,11 +198,11 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
 
 export function doDefinition(
     content: string, position: VSCLS.Position, data: Types.DocumentData,
-    dependenciesData: WeakMap<DM.FileDependency, Types.DocumentData>): VSCLS.Location | null {
+    dependenciesData: Map<DM.FileDependency, Types.DocumentData>): VSCLS.Location | null {
 
     const symbols = Helpers.getSymbols(data, dependenciesData);
     const line = content.split('\n')[position.line];
-    
+
     const stringRegex = /"([^"]+)"/g;
     let match;
     while ((match = stringRegex.exec(line)) !== null) {
@@ -193,16 +228,16 @@ export function doDefinition(
         if (position.line === constant.range.start.line) return null;
         return VSCLS.Location.create(constant.file.toString(), constant.range);
     }
-    
+
     const potentialIdentifiers = [result.identifier];
     if (result.identifier.startsWith('@')) potentialIdentifiers.push(result.identifier.substring(1));
     else potentialIdentifiers.push('@' + result.identifier);
-    
+
     const callable = symbols.callables.find(clb => potentialIdentifiers.some(id => id.toLowerCase() === clb.identifier.toLowerCase()));
     if (callable) {
         return VSCLS.Location.create(callable.file.toString(), VSCLS.Range.create(callable.start, callable.end));
     }
-    
+
     const value = symbols.values.find(val => potentialIdentifiers.some(id => id.toLowerCase() === val.identifier.toLowerCase()));
     if (value) {
         if (position.line === value.range.start.line) return null;
@@ -219,15 +254,15 @@ function findIdentifierBehindCursor(content: string, cursorIndex: number): strin
 
 export function doCompletions(
     connection: VSCLS.Connection,
-    content: string, 
-    position: VSCLS.Position, 
-    data: Types.DocumentData, 
-    dependenciesData: WeakMap<DM.FileDependency, Types.DocumentData>
+    content: string,
+    position: VSCLS.Position,
+    data: Types.DocumentData,
+    dependenciesData: Map<DM.FileDependency, Types.DocumentData>
 ): VSCLS.CompletionItem[] | null {
 
     const { values, callables, constants } = Helpers.getSymbols(data, dependenciesData);
     const allItems: VSCLS.CompletionItem[] = [];
-    
+
     pawnKeywords.forEach(keyword => {
         allItems.push({ label: keyword, kind: VSCLS.CompletionItemKind.Keyword });
     });
@@ -235,24 +270,24 @@ export function doCompletions(
     constants.forEach(c => {
         allItems.push({ label: c.identifier, detail: c.label, kind: VSCLS.CompletionItemKind.Constant });
     });
-    
+
     values.forEach(v => {
-        allItems.push({ 
-            label: v.identifier, 
-            detail: v.label, 
-            kind: v.isConst ? VSCLS.CompletionItemKind.Constant : VSCLS.CompletionItemKind.Variable, 
-            insertText: v.identifier.startsWith('@') ? v.identifier.substring(1) : v.identifier, 
-            documentation: v.documentaton 
+        allItems.push({
+            label: v.identifier,
+            detail: v.label,
+            kind: v.isConst ? VSCLS.CompletionItemKind.Constant : VSCLS.CompletionItemKind.Variable,
+            insertText: v.identifier.startsWith('@') ? v.identifier.substring(1) : v.identifier,
+            documentation: v.documentation
         });
     });
-        
+
     callables.forEach(c => {
-        allItems.push({ 
-            label: c.identifier, 
-            detail: c.label, 
-            kind: VSCLS.CompletionItemKind.Function, 
-            insertText: c.identifier.startsWith('@') ? c.identifier.substring(1) : c.identifier, 
-            documentation: c.documentaton 
+        allItems.push({
+            label: c.identifier,
+            detail: c.label,
+            kind: VSCLS.CompletionItemKind.Function,
+            insertText: c.identifier.startsWith('@') ? c.identifier.substring(1) : c.identifier,
+            documentation: c.documentation
         });
     });
 
@@ -262,7 +297,7 @@ export function doCompletions(
 function findFunctionIdentifier(content: string, cursorIndex: number): FindFunctionIdentifierResult {
     let searchIndex = cursorIndex - 1;
     let parenDepth = 0;
-    
+
     while (searchIndex >= 0) {
         const char = content[searchIndex];
         if (char === ')') {
@@ -285,7 +320,7 @@ function findFunctionIdentifier(content: string, cursorIndex: number): FindFunct
                         parameterIndex++;
                     }
                 }
-                
+
                 return { identifier, parameterIndex };
             }
         } else if (char === ';') {
@@ -299,14 +334,14 @@ function findFunctionIdentifier(content: string, cursorIndex: number): FindFunct
 
 
 export function doHover(
-    content: string, position: VSCLS.Position, data: Types.DocumentData, dependenciesData: WeakMap<DM.FileDependency, Types.DocumentData>): VSCLS.Hover | null {
+    content: string, position: VSCLS.Position, data: Types.DocumentData, dependenciesData: Map<DM.FileDependency, Types.DocumentData>): VSCLS.Hover | null {
     const cursorIndex = positionToIndex(content, position);
     const result = findIdentifierAtCursor(content, cursorIndex);
     if (!result.identifier) return null;
     const symbols = Helpers.getSymbols(data, dependenciesData);
-    
+
     const constant = symbols.constants.find(c => c.identifier === result.identifier);
-    if(constant) return { contents: [{ language: 'amxxpawn', value: constant.label }]};
+    if (constant) return { contents: [{ language: 'amxxpawn', value: constant.label }] };
 
     const idsToSearch = [result.identifier];
     if (result.identifier.startsWith('@')) idsToSearch.push(result.identifier.substring(1));
@@ -314,12 +349,12 @@ export function doHover(
 
     const callable = symbols.callables.find(c => idsToSearch.some(id => id.toLowerCase() === c.identifier.toLowerCase()));
     if (callable) {
-        return { contents: [{ language: 'amxxpawn', value: callable.label }, { language: 'pawndoc', value: callable.documentaton }] };
+        return { contents: [{ language: 'amxxpawn', value: callable.label }, { language: 'pawndoc', value: callable.documentation }] };
     }
-    
+
     const value = symbols.values.find(v => idsToSearch.some(id => id.toLowerCase() === v.identifier.toLowerCase()));
     if (value && position.line !== value.range.start.line) {
-        return { contents: [{ language: 'amxxpawn', value: value.label }, { language: 'pawndoc', value: value.documentaton }] };
+        return { contents: [{ language: 'amxxpawn', value: value.label }, { language: 'pawndoc', value: value.documentation }] };
     }
     return null;
 }
@@ -331,9 +366,9 @@ export function doSignatures(content: string, position: VSCLS.Position, callable
     if (!result.identifier) {
         return null;
     }
-    
+
     const callable = callables.find(c => c.identifier.toLowerCase() === result.identifier.toLowerCase());
-    
+
     if (!callable) {
         return null;
     }
@@ -357,10 +392,10 @@ export function doSignatures(content: string, position: VSCLS.Position, callable
                     const paramSignature = p.label.split('=')[0].trim();
 
                     const nameMatch = paramSignature.match(/(\w+)(?:\s*\[\s*\])?\s*$/);
-                    
+
                     return nameMatch ? nameMatch[1] === paramName : false;
                 });
-                
+
                 if (foundIndex !== -1) {
                     activeParameter = foundIndex;
                 } else {
@@ -375,10 +410,10 @@ export function doSignatures(content: string, position: VSCLS.Position, callable
     return {
         activeSignature: 0,
         activeParameter: activeParameter,
-        signatures: [{ 
-            label: callable.label, 
-            parameters: callable.parameters, 
-            documentation: callable.documentaton 
+        signatures: [{
+            label: callable.label,
+            parameters: callable.parameters,
+            documentation: callable.documentation
         }]
     };
 }

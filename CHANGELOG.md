@@ -7,6 +7,28 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.2.0] - 2026-03-02
+### Added
+- Adicionado suporte a `enum`: valores de enums agora aparecem no Autocomplete e no `Ctrl+Click` (Ir para Definição).
+- *Added `enum` support: enum values now appear in Autocomplete and `Ctrl+Click` (Go to Definition).*
+- Adicionados 36 snippets prontos para uso, como `plugin`, `forplayers`, `menu_create`, `sql_threadquery`, entre outros. Basta digitar o prefixo e pressionar `Tab`.
+- *Added 36 ready-to-use snippets such as `plugin`, `forplayers`, `menu_create`, `sql_threadquery`, and more. Just type the prefix and press `Tab`.*
+### Fixed
+- Corrigida a extensão monitorando todos os arquivos do workspace desnecessariamente, o que causava lentidão em projetos grandes. Agora monitora apenas arquivos `.sma` e `.inc`.
+- *Fixed the extension unnecessarily watching all files in the workspace, which caused slowdowns in large projects. Now only `.sma` and `.inc` files are monitored.*
+- Corrigido o re-parse que acontecia a cada tecla digitada. Agora aguarda 300ms após parar de digitar, resultando em uma experiência muito mais fluida.
+- *Fixed re-parsing happening on every keystroke. Now waits 300ms after you stop typing, resulting in a much smoother experience.*
+- Corrigido um bug onde o parser perdia o rastreamento de funções quando uma string continha `{` ou `}` (ex: `formatex(msg, charsmax(msg), "{gold}Olá")`).
+- *Fixed a bug where the parser lost track of functions when a string contained `{` or `}` (e.g., `formatex(msg, charsmax(msg), "{gold}Hello")`).*
+- Corrigido um problema de memória onde arquivos `.inc` que não eram mais usados continuavam carregados na memória.
+- *Fixed a memory issue where `.inc` files that were no longer used remained loaded in memory.*
+- Adicionado cache de arquivos `.inc`: agora os includes são lidos do disco apenas uma vez. Quando um `.inc` é salvo, o cache é atualizado automaticamente.
+- *Added `.inc` file caching: includes are now read from disk only once. When an `.inc` is saved, the cache is automatically updated.*
+- Atualizado o uso de APIs depreciadas do VS Code (`workspace.rootPath` → `workspaceFolders`).
+- *Updated usage of deprecated VS Code APIs (`workspace.rootPath` → `workspaceFolders`).*
+- Removido código morto e dependências internas não utilizadas, reduzindo o tamanho da extensão.
+- *Removed dead code and unused internal dependencies, reducing the extension size.*
+
 ## [Version 1.1.9] - 2025-08-01
 ### Fixed
 - Corrigido o Autocomplete que exibia sugestões irrelevantes (busca "fuzzy") ao digitar parâmetros de funções. A lógica foi alterada para uma busca exata ("começa com"), resultando em sugestões mais limpas e precisas.

@@ -7,7 +7,6 @@ import {
     TextDocuments,
     ProposedFeatures,
     InitializeParams,
-    DidChangeConfigurationParams,
     CompletionItem,
     TextDocumentPositionParams,
     TextDocumentSyncKind,
@@ -23,7 +22,8 @@ import {
     DiagnosticSeverity,
     DidChangeConfigurationNotification,
     DocumentLinkParams,
-    Range
+    Range,
+    FileChangeType
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI } from 'vscode-uri';
@@ -43,6 +43,13 @@ let documentsData: Map<string, Types.DocumentData> = new Map();
 let dependenciesData: Map<DM.FileDependency, Types.DocumentData> = new Map();
 let workspaceRoot: string | null = null;
 let hasConfigurationCapability: boolean = false;
+
+// --- Fix #2: Cache de conteúdo de includes ---
+const includeContentCache: Map<string, string> = new Map();
+
+// --- Fix #3: Debounce timers por documento ---
+const reparseTimers: Map<string, NodeJS.Timeout> = new Map();
+const REPARSE_DELAY = 300; // ms
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
     workspaceRoot = params.rootUri;
@@ -67,24 +74,62 @@ connection.onInitialized(() => {
     }
 });
 
-// AQUI ESTÁ A CORREÇÃO PRINCIPAL
-// Esta função agora é muito mais segura.
 connection.onDidChangeConfiguration(async () => {
     if (hasConfigurationCapability) {
-        // Em vez de confiar no objeto 'change', nós proativamente
-        // pedimos a configuração mais recente. Isso evita o erro de 'null'.
         try {
             syncedSettings = await connection.workspace.getConfiguration('amxxpawn');
         } catch (e) {
             connection.console.error(`Error fetching configuration: ${e}`);
-            // Usa um objeto vazio como fallback para evitar crashes
             syncedSettings = { compiler: {} as Settings.CompilerSettings, language: {} as Settings.LanguageSettings };
         }
     }
-    // Re-analisa todos os documentos com a configuração nova (ou de fallback).
-    documentsManager.all().forEach(reparseDocument);
+    // Limpa cache de includes quando configuração muda (paths podem ter mudado)
+    includeContentCache.clear();
+    documentsManager.all().forEach((doc) => scheduleReparse(doc));
 });
 
+// --- Fix #2: Handler de mudanças em arquivos do workspace ---
+// Quando um .inc é salvo/modificado externamente, invalida o cache e re-parseia
+connection.onDidChangeWatchedFiles((params) => {
+    let needsReparse = false;
+
+    for (const change of params.changes) {
+        const changedUri = change.uri;
+
+        // Invalida o cache do arquivo modificado
+        if (includeContentCache.has(changedUri)) {
+            includeContentCache.delete(changedUri);
+            needsReparse = true;
+        }
+
+        // Se o arquivo foi deletado, limpa dependências dele
+        if (change.type === FileChangeType.Deleted) {
+            const dep = dependencyManager.getDependency(changedUri);
+            if (dep) {
+                const depData = dependenciesData.get(dep);
+                if (depData) {
+                    Helpers.removeDependencies(depData.dependencies, dependencyManager, dependenciesData);
+                }
+                dependenciesData.delete(dep);
+                needsReparse = true;
+            }
+        }
+
+        // Se um .inc foi modificado, força re-parse das dependências
+        if (change.type === FileChangeType.Changed) {
+            const dep = dependencyManager.getDependency(changedUri);
+            if (dep) {
+                // Remove dados antigos para forçar re-parse
+                dependenciesData.delete(dep);
+                needsReparse = true;
+            }
+        }
+    }
+
+    if (needsReparse) {
+        documentsManager.all().forEach((doc) => scheduleReparse(doc));
+    }
+});
 
 connection.onDocumentLinks((params: DocumentLinkParams): DocumentLink[] | null => {
     const document = documentsManager.get(params.textDocument.uri);
@@ -99,7 +144,7 @@ connection.onDocumentLinks((params: DocumentLinkParams): DocumentLink[] | null =
             return DocumentLink.create(range, `https://amxx-bg.info/api/${filename}`);
         });
     }
-    
+
     return null;
 });
 
@@ -114,26 +159,46 @@ async function validateAndReparse(document: TextDocument): Promise<void> {
             connection.console.error(`Could not fetch configuration: ${e}`);
         }
     }
-    reparseDocument(document);
+    doReparse(document);
 }
 
-function reparseDocument(document: TextDocument) {
+// --- Fix #3: Debounce — agenda reparse com delay ---
+function scheduleReparse(document: TextDocument) {
+    const uri = document.uri;
+
+    // Cancela timer anterior se existir
+    const existingTimer = reparseTimers.get(uri);
+    if (existingTimer) {
+        clearTimeout(existingTimer);
+    }
+
+    // Agenda novo reparse com delay
+    const timer = setTimeout(() => {
+        reparseTimers.delete(uri);
+        validateAndReparse(document);
+    }, REPARSE_DELAY);
+
+    reparseTimers.set(uri, timer);
+}
+
+function doReparse(document: TextDocument) {
     let data = documentsData.get(document.uri);
     if (data === undefined) {
         data = new Types.DocumentData(document.uri);
         documentsData.set(document.uri, data);
     }
 
-    if (data.reparseTimer) {
-        clearTimeout(data.reparseTimer);
-        data.reparseTimer = null;
-    }
-
     const diagnostics: Map<string, Diagnostic[]> = new Map();
     parseFile(URI.parse(document.uri), document.getText(), data, diagnostics, false);
-    
-    const allDocsData = documentsManager.all().map((doc) => documentsData.get(doc.uri)).filter(d => d !== undefined) as Types.DocumentData[];
-    Helpers.removeUnreachableDependencies(allDocsData, dependencyManager, dependenciesData);
+
+    // --- Fix #4: Limpa dependências órfãs ---
+    Helpers.removeUnreachableDependencies(
+        documentsManager.all()
+            .map(doc => documentsData.get(doc.uri))
+            .filter((d): d is Types.DocumentData => d !== undefined),
+        dependencyManager,
+        dependenciesData
+    );
 
     diagnostics.forEach((ds, uri) => connection.sendDiagnostics({ uri: uri, diagnostics: ds }));
 }
@@ -206,6 +271,13 @@ documentsManager.onDidOpen((event) => {
 });
 
 documentsManager.onDidClose((event) => {
+    // Cancela timer de debounce pendente
+    const timer = reparseTimers.get(event.document.uri);
+    if (timer) {
+        clearTimeout(timer);
+        reparseTimers.delete(event.document.uri);
+    }
+
     const docData = documentsData.get(event.document.uri);
     if (docData) {
         Helpers.removeDependencies(docData.dependencies, dependencyManager, dependenciesData);
@@ -217,13 +289,14 @@ documentsManager.onDidClose((event) => {
     }
 });
 
+// --- Fix #3: onDidChangeContent usa debounce ---
 documentsManager.onDidChangeContent((change) => {
-    validateAndReparse(change.document);
+    scheduleReparse(change.document);
 });
 
 function resolveIncludePath(filename: string, documentPath: string, localTo: string | undefined): string | undefined {
     const workspacePath = workspaceRoot ? URI.parse(workspaceRoot).fsPath : undefined;
-    
+
     const resolvedIncludePaths = (syncedSettings?.compiler?.includePaths || []).map(p => resolvePathVariables(p, workspacePath, documentPath));
 
     const finalIncludePaths = [...resolvedIncludePaths];
@@ -250,6 +323,26 @@ function resolveIncludePath(filename: string, documentPath: string, localTo: str
     return undefined;
 }
 
+// --- Fix #2: Função auxiliar para ler include com cache ---
+function readIncludeContent(uri: string): string | null {
+    // Verifica se já está no cache
+    const cached = includeContentCache.get(uri);
+    if (cached !== undefined) {
+        return cached;
+    }
+
+    // Lê do disco e armazena no cache
+    try {
+        const fsPath = URI.parse(uri).fsPath;
+        const content = FS.readFileSync(fsPath).toString();
+        includeContentCache.set(uri, content);
+        return content;
+    } catch (e) {
+        connection.console.error(`Failed to read file ${uri}: ${e}`);
+        return null;
+    }
+}
+
 function parseFile(fileUri: URI, content: string, data: Types.DocumentData, diagnostics: Map<string, Diagnostic[]>, isDependency: boolean) {
     let myDiagnostics: Diagnostic[] = [];
     diagnostics.set(data.uri, myDiagnostics);
@@ -265,7 +358,7 @@ function parseFile(fileUri: URI, content: string, data: Types.DocumentData, diag
     results.headerInclusions.forEach((header) => {
         const localTo = header.isLocal ? Path.dirname(documentPath) : undefined;
         const resolvedUri = resolveIncludePath(header.filename, documentPath, localTo);
-        
+
         if (resolvedUri === data.uri) return;
 
         if (resolvedUri !== undefined) {
@@ -281,12 +374,12 @@ function parseFile(fileUri: URI, content: string, data: Types.DocumentData, diag
             if (depData === undefined) {
                 depData = new Types.DocumentData(dependency.uri);
                 dependenciesData.set(dependency, depData);
-                try {
+
+                // --- Fix #2: Usa cache em vez de readFileSync direto ---
+                const fileContent = readIncludeContent(dependency.uri);
+                if (fileContent !== null) {
                     const dependencyUri = URI.parse(dependency.uri);
-                    const fileContent = FS.readFileSync(dependencyUri.fsPath).toString();
                     parseFile(dependencyUri, fileContent, depData, diagnostics, true);
-                } catch (e) {
-                    connection.console.error(`Failed to read dependency file ${dependency.uri}: ${e.message}`);
                 }
             }
             data.resolvedInclusions.push({ uri: resolvedUri, descriptor: header });
@@ -306,6 +399,7 @@ function parseFile(fileUri: URI, content: string, data: Types.DocumentData, diag
 
     data.callables = results.callables;
     data.values = results.values;
+    data.constants = results.constants;
 }
 
 documentsManager.listen(connection);

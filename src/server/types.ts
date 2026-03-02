@@ -24,7 +24,7 @@ export interface CallableDescriptor {
     start: VSCLS.Position;
     end: VSCLS.Position;
     parameters: VSCLS.ParameterInformation[];
-    documentaton: string;
+    documentation: string;
     isForward: boolean;
 }
 
@@ -34,7 +34,7 @@ export interface ValueDescriptor {
     isConst: boolean;
     file: URI;
     range: VSCLS.Range;
-    documentaton: string;
+    documentation: string;
 }
 
 export interface ConstantDescriptor {

@@ -14,6 +14,22 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.2.0)
+### Added
+- Adicionado suporte a `enum`: valores de enums agora aparecem no Autocomplete e no `Ctrl+Click` (Ir para Definição).
+- *Added `enum` support: enum values now appear in Autocomplete and `Ctrl+Click` (Go to Definition).*
+- Adicionados 36 snippets prontos para uso, como `plugin`, `forplayers`, `menu_create`, `sql_threadquery`, entre outros.
+- *Added 36 ready-to-use snippets such as `plugin`, `forplayers`, `menu_create`, `sql_threadquery`, and more.*
+### Fixed
+- Melhorias significativas de performance: cache de includes, debounce de 300ms no re-parse, e monitoramento apenas de arquivos `.sma` e `.inc`.
+- *Significant performance improvements: include caching, 300ms re-parse debounce, and monitoring only `.sma` and `.inc` files.*
+- Corrigido bug onde strings contendo `{` ou `}` quebravam o parser (ex: `"{gold}Olá"`).
+- *Fixed a bug where strings containing `{` or `}` broke the parser (e.g., `"{gold}Hello"`).*
+- Corrigido vazamento de memória com arquivos `.inc` que não eram mais utilizados.
+- *Fixed memory leak with `.inc` files that were no longer in use.*
+
+---
+
 ## ✨ What's New (v1.1.9)
 ### Fixed
 - Corrigido o Autocomplete que exibia sugestões irrelevantes (busca "fuzzy") ao digitar parâmetros de funções. A lógica foi alterada para uma busca exata ("começa com"), resultando em sugestões mais limpas e precisas.

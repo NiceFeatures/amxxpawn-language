@@ -24,7 +24,7 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
     const startTime = process.hrtime();
 
     let outputPath = '';
-    const workspaceRoot = VSC.workspace.rootPath;
+    const workspaceRoot = VSC.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     if (compilerSettings.outputType === 'path') {
         const resolvedPath = Helpers.resolvePathVariables(compilerSettings.outputPath, workspaceRoot, inputPath);
@@ -46,10 +46,10 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
         ...compilerSettings.includePaths.map((path) => `-i"${Helpers.resolvePathVariables(path, workspaceRoot, inputPath)}"`),
         `-o"${outputPath}"`
     ];
-    
+
     const spawnOptions: CP.SpawnOptions = {
         cwd: Path.dirname(executablePath),
-        shell: true 
+        shell: true
     };
 
     if (compilerSettings.showInfoMessages === true) {
@@ -57,7 +57,7 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
     }
 
     let compilerStdout = '';
-    
+
     const amxxpcProcess = CP.spawn(`"${executablePath}"`, compilerArgs, spawnOptions);
 
     amxxpcProcess.stdout.on('data', (data) => {
@@ -99,7 +99,7 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
                 endLine: results[3] ? Number.parseInt(results[3], 10) : undefined
             });
         }
-        
+
         // Limpa o painel de problemas de arquivos que não têm mais erros
         const filesWithError = new Set(outputData.keys());
         diagnosticCollection.forEach((uri) => {
@@ -116,13 +116,13 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
 
         for (const [filePath, data] of outputData.entries()) {
             const resourceDiagnostics: VSC.Diagnostic[] = [];
-            
+
             outputChannel.appendLine(`📄 Arquivo: ${filePath}`);
-            
+
             data.diagnostics.forEach((diag) => {
                 const type = diag.type.toUpperCase();
                 outputChannel.appendLine(`  [${type}] Linha ${diag.startLine}: ${diag.message}`);
-                
+
                 const range = new VSC.Range(diag.startLine - 1, 0, (diag.endLine || diag.startLine) - 1, Number.MAX_VALUE);
                 const severity = type === 'ERROR' ? VSC.DiagnosticSeverity.Error : VSC.DiagnosticSeverity.Warning;
                 resourceDiagnostics.push(new VSC.Diagnostic(range, diag.message, severity));
@@ -130,7 +130,7 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
             diagnosticCollection.set(VSC.Uri.file(filePath), resourceDiagnostics);
             outputChannel.appendLine('');
         }
-        
+
         //
         // LÓGICA DE SAÍDA FINAL (CORRIGIDA)
         //
@@ -145,7 +145,7 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
             outputChannel.appendLine(`⚠️  Compilação concluída com avisos em ${compilationTime} segundos.`);
             outputChannel.appendLine(`   Saída gerada em: ${outputPath}`);
         } else if (/Done\./.test(compilerStdout)) {
-             try {
+            try {
                 const stats = FS.statSync(outputPath);
                 const fileSizeInKB = (stats.size / 1024).toFixed(2);
 
@@ -156,14 +156,14 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
                 outputChannel.appendLine(`║ Saída:      ${outputPath}`);
                 outputChannel.appendLine(`║ Tamanho:    ${fileSizeInKB} KB`);
                 outputChannel.appendLine(`║ Tempo:      ${compilationTime} segundos`);
-                
+
                 if (headerSizeMatch || codeSizeMatch || dataSizeMatch) {
                     outputChannel.appendLine('╟────────────────────────────────────────────────');
                     outputChannel.appendLine('║ Estatísticas do Compilador:');
-                    if(headerSizeMatch) outputChannel.appendLine(`║   Cabeçalho:  ${headerSizeMatch[1]} bytes`);
-                    if(codeSizeMatch)   outputChannel.appendLine(`║   Código:     ${codeSizeMatch[1]} bytes`);
-                    if(dataSizeMatch)   outputChannel.appendLine(`║   Dados:      ${dataSizeMatch[1]} bytes`);
-                    if(totalSizeMatch)  outputChannel.appendLine(`║   Total Req.: ${totalSizeMatch[1]} bytes`);
+                    if (headerSizeMatch) outputChannel.appendLine(`║   Cabeçalho:  ${headerSizeMatch[1]} bytes`);
+                    if (codeSizeMatch) outputChannel.appendLine(`║   Código:     ${codeSizeMatch[1]} bytes`);
+                    if (dataSizeMatch) outputChannel.appendLine(`║   Dados:      ${dataSizeMatch[1]} bytes`);
+                    if (totalSizeMatch) outputChannel.appendLine(`║   Total Req.: ${totalSizeMatch[1]} bytes`);
                 }
 
                 outputChannel.appendLine('╚════════════════════════════════════════════════\n');
@@ -190,7 +190,7 @@ export function compile(outputChannel: VSC.OutputChannel, diagnosticCollection: 
     if (!editor) { outputChannel.appendLine('Nenhuma janela com código Pawn ativa.'); return; }
     if (editor.document.uri.scheme !== 'file') { outputChannel.appendLine('O arquivo de entrada não está no disco.'); return; }
     const inputPath = editor.document.uri.fsPath;
-    const executablePath = Helpers.resolvePathVariables(compilerSettings.executablePath, VSC.workspace.rootPath, inputPath);
+    const executablePath = Helpers.resolvePathVariables(compilerSettings.executablePath, VSC.workspace.workspaceFolders?.[0]?.uri.fsPath, inputPath);
     if (!executablePath || !FS.existsSync(executablePath)) { outputChannel.appendLine(`❌ Compilador não encontrado em: ${executablePath}. Verifique suas configurações.`); return; }
     const tryCompile = () => {
         FS.access(executablePath, FS.constants.X_OK, (err) => {
@@ -211,21 +211,21 @@ export function compileLocal(outputChannel: VSC.OutputChannel, diagnosticCollect
     outputChannel.clear();
     const config = VSC.workspace.getConfiguration('amxxpawn');
     const compilerSettings = config.get<Settings.CompilerSettings>('compiler');
-    if(!compilerSettings) { outputChannel.appendLine('Configurações do compilador não encontradas.'); return; }
-    if(compilerSettings.switchToOutput === true) { outputChannel.show(true); }
+    if (!compilerSettings) { outputChannel.appendLine('Configurações do compilador não encontradas.'); return; }
+    if (compilerSettings.switchToOutput === true) { outputChannel.show(true); }
     const editor = VSC.window.activeTextEditor;
-    if(!editor || editor.document.uri.scheme !== 'file') { outputChannel.appendLine('Nenhum arquivo Pawn válido aberto.'); return; }
+    if (!editor || editor.document.uri.scheme !== 'file') { outputChannel.appendLine('Nenhum arquivo Pawn válido aberto.'); return; }
     const inputPath = editor.document.uri.fsPath;
     const executableDir = Path.dirname(inputPath);
     FS.readdir(executableDir, (err, files) => {
-        if(err) { throw err; }
+        if (err) { throw err; }
         const potentialFiles = files.filter((file) => file.startsWith('amxxpc'));
         let executablePath: string;
-        if(potentialFiles.includes('amxxpc.exe')) {
+        if (potentialFiles.includes('amxxpc.exe')) {
             executablePath = Path.join(executableDir, 'amxxpc.exe');
         } else {
-            if(potentialFiles.length === 0) { outputChannel.appendLine(`Nenhum 'amxxpc' encontrado em '${executableDir}'.`); return; }
-            if(potentialFiles.length > 1) { outputChannel.appendLine(`Resultado ambíguo: mais de um arquivo começando com 'amxxpc' em '${executableDir}'.`); return; }
+            if (potentialFiles.length === 0) { outputChannel.appendLine(`Nenhum 'amxxpc' encontrado em '${executableDir}'.`); return; }
+            if (potentialFiles.length > 1) { outputChannel.appendLine(`Resultado ambíguo: mais de um arquivo começando com 'amxxpc' em '${executableDir}'.`); return; }
             executablePath = Path.join(executableDir, potentialFiles[0]);
         }
         doCompile(executablePath, inputPath, compilerSettings, outputChannel, diagnosticCollection);

@@ -1,4 +1,5 @@
 .vscode/**
+.git/**
 typings/**
 src/**
 **/*.ts
@@ -6,3 +7,9 @@ src/**
 .gitignore
 tsconfig.json
 **/*.log
+package-lock.json
+_config.yml
+index.md
+CHANGELOG.md
+README.md
+LICENSE
