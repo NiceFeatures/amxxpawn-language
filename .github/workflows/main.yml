@@ -1,0 +1,40 @@
+name: Build AMXX Pawn Extension
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Compilar extensão
+        run: npm run compile
+
+      - name: Instalar VSCE globalmente
+        run: npm install -g @vscode/vsce
+
+      - name: Empacotar extensão (.vsix)
+        run: vsce package
+
+      - name: Upload do artefato VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: amxxpawn-language-build
+          path: '*.vsix'
+          retention-days: 7
