@@ -7,6 +7,19 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.2.2] - 2026-03-03
+### Fixed
+- Corrigido o realce semântico de `#include`: a diretiva e o nome do arquivo agora recebem cores distintas.
+- *Fixed semantic highlighting for `#include`: the directive and filename now get distinct colors.*
+- Corrigido bug onde enums com `{` na mesma linha (ex: `enum _: Name {`) causavam a perda de realce em todo o código abaixo.
+- *Fixed a bug where enums with `{` on the same line caused all code below to lose highlighting.*
+- Corrigido o reconhecimento de membros de enum com tags (ex: `bool:Member`, `Float:Value`). A tag e o membro agora são identificados separadamente.
+- *Fixed recognition of tagged enum members (e.g., `bool:Member`, `Float:Value`). The tag and member are now identified separately.*
+- Corrigido o reconhecimento de múltiplas variáveis declaradas na mesma linha (ex: `new Cvar, Cvar2`). Todas as variáveis agora recebem realce.
+- *Fixed recognition of multiple variables declared on the same line (e.g., `new Cvar, Cvar2`). All variables now receive highlighting.*
+
+---
+
 ## [Version 1.2.1] - 2026-03-02
 ### Added
 - Adicionado suporte a **Inglês** e **Português (PT-BR)**. A extensão agora exibe todas as mensagens, descrições de configuração e saída do compilador no idioma do VS Code do usuário.

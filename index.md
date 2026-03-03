@@ -14,6 +14,19 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.2.2)
+### Fixed
+- Realce semântico para `#include`: diretiva e nome do arquivo agora têm cores distintas.
+- *`#include` highlighting: directive and filename now have distinct colors.*
+- Enums com `{` na mesma linha não quebram mais o realce do código abaixo.
+- *Enums with `{` on the same line no longer break highlighting of code below.*
+- Membros de enum com tags (`bool:Member`, `Float:Value`) agora são reconhecidos corretamente.
+- *Tagged enum members (`bool:Member`, `Float:Value`) are now properly recognized.*
+- Múltiplas variáveis na mesma linha (`new a, b, c`) agora recebem realce individualmente.
+- *Multiple variables on the same line (`new a, b, c`) are now highlighted individually.*
+
+---
+
 ## ✨ What's New (v1.2.1)
 ### Added
 - Suporte a **Inglês** e **Português (PT-BR)**. Mensagens, configurações e saída do compilador seguem o idioma do VS Code.

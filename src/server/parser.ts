@@ -96,6 +96,23 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     filename: match[1], isLocal: lineContent.includes('"'), isSilent: lineContent.startsWith('#tryinclude'),
                     start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length }
                 });
+
+                // Semantic: #include keyword
+                const keyword = lineContent.startsWith('#tryinclude') ? '#tryinclude' : '#include';
+                const kwCol = originalLine.indexOf(keyword.charAt(0));
+                results.semanticTokens.push({
+                    line: lineIndex, char: kwCol, length: keyword.length,
+                    tokenType: 5, tokenModifiers: 0 // keyword
+                });
+
+                // Semantic: filename
+                const fnameStart = originalLine.indexOf(match[1]);
+                if (fnameStart >= 0) {
+                    results.semanticTokens.push({
+                        line: lineIndex, char: fnameStart, length: match[1].length,
+                        tokenType: 7, tokenModifiers: 0 // string
+                    });
+                }
             }
         } else if (lineContent.startsWith('#define')) {
             const match = lineContent.match(defineRegex);
@@ -196,6 +213,8 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     }
                 }
             }
+            docComment = "";
+            continue; // Skip bracketDepth update — enum loop already consumed all braces
         } else {
             const callableMatch = lineContent.match(callableDefinitionRegex);
             if (callableMatch && callableMatch[2] !== 'enum') {
@@ -239,9 +258,9 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                 const varMatch = lineContent.match(globalVarRegex);
                 if (varMatch) {
                     const identifier = (varMatch[2] || '').split(':').pop() || '';
+                    const isConst = lineContent.includes('const');
+                    const isStatic = varMatch[1] === 'static';
                     if (identifier && !results.values.find(v => v.identifier === identifier)) {
-                        const isConst = lineContent.includes('const');
-                        const isStatic = varMatch[1] === 'static';
                         results.values.push({
                             label: lineContent, identifier, isConst, file: fileUri,
                             range: { start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length } },
@@ -257,6 +276,34 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                                 line: lineIndex, char: varCol, length: identifier.length,
                                 tokenType: 2, tokenModifiers: modifiers // variable
                             });
+                        }
+                    }
+
+                    // Multi-variable: new g_iReturn, g_PugState, g_Other
+                    const restOfLine = lineContent.substring(lineContent.indexOf(identifier) + identifier.length);
+                    const commaRest = restOfLine.replace(/\[.*?\]/g, '').trim();
+                    if (commaRest.startsWith(',')) {
+                        const extraVars = commaRest.split(',').slice(1);
+                        for (const ev of extraVars) {
+                            const evClean = ev.trim().replace(/\[.*/, '').replace(/=.*/, '').trim();
+                            const evIdent = (evClean.split(':').pop() || '').trim();
+                            if (evIdent && /^[A-Za-z_@][\w@]*$/.test(evIdent) && !results.values.find(v => v.identifier === evIdent)) {
+                                results.values.push({
+                                    label: lineContent, identifier: evIdent, isConst, file: fileUri,
+                                    range: { start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length } },
+                                    documentation: docComment.trim()
+                                });
+                                const evCol = originalLine.indexOf(evIdent);
+                                if (evCol >= 0) {
+                                    let evMod = 1;
+                                    if (isConst) evMod |= 2;
+                                    if (isStatic) evMod |= 4;
+                                    results.semanticTokens.push({
+                                        line: lineIndex, char: evCol, length: evIdent.length,
+                                        tokenType: 2, tokenModifiers: evMod
+                                    });
+                                }
+                            }
                         }
                     }
                 }

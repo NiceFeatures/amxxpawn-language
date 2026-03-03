@@ -54,6 +54,7 @@ export const SemanticTokenTypes = [
     'parameter',    // 4
     'keyword',      // 5
     'type',         // 6
+    'string',       // 7
 ] as const;
 
 export const SemanticTokenModifiers = [
