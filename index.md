@@ -1,7 +1,24 @@
 ---
 ## layout: default
 
-# AMXXPawn Language Service for Visual Studio Code
+<div align="center">
+  <img src="images/extension-logo.png" alt="AMXXPawn Language Extended Logo" width="150" />
+</div>
+
+<h1 align="center" style="border-bottom: none; margin-bottom: 0;">AMXXPawn Language - Extended</h1>
+
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=iceeedR.amxx-pawn-language-editor">
+    <img alt="Visual Studio Marketplace Version" src="https://img.shields.io/visual-studio-marketplace/v/iceeedR.amxx-pawn-language-editor?style=for-the-badge&color=2ea043">
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=iceeedR.amxx-pawn-language-editor">
+    <img alt="Visual Studio Marketplace Installs" src="https://img.shields.io/visual-studio-marketplace/i/iceeedR.amxx-pawn-language-editor?style=for-the-badge&color=blue">
+  </a>
+</p>
+
+<div style="background-color: rgba(255, 165, 0, 0.1); border-left: 4px solid #ffa500; padding: 15px; margin: 20px 0; border-radius: 4px;">
+  <strong style="color: #ff8c00;">⚠️ DISCLAIMER:</strong> This extension ("AMXXPawn Language - Extended") is a <strong>fork</strong> of the original <a href="https://marketplace.visualstudio.com/items?itemName=KliPPy.amxxpawn-language" style="color: #ff8c00;">AMXXPawn Language</a> extension by KliPPy. It is not affiliated with the original author. This fork includes specific enhancements for local workflows, improved compilation tasks, and targeted syntax additions.
+</div>
 
 ---
 
@@ -76,19 +93,19 @@ It transforms VS Code into a powerful IDE for Pawn, bringing features that were 
 
 ---
 
-## ✨ Key Features
+## ✨ Key Features (Extended Version)
 
-This extension goes far beyond simple syntax highlighting. It offers a complete **Language Server** with:
+Unlike the original extension, this **Extended** version provides tailored optimizations focused on local custom workflows, alongside a complete **Language Server** toolset:
 
-- **Advanced IntelliSense:** Autocomplete for functions, constants, and variables.
-- **Smart Code Navigation (**``**):** Press `Ctrl+Click` to instantly jump to the definition of:
+- **🟢 Advanced IntelliSense:** Crisp autocomplete for functions, constants, and variables.
+- **🎯 Smart Code Navigation:** Press `Ctrl+Click` to instantly jump to the definition of:
   - Functions (including `public`, `stock`, `native`, and those with an `@` prefix).
   - Constants defined with `#define`.
   - Global variables.
   - **Functions in Tasks:** Navigate directly to the function when its name is passed as a string (e.g., `set_task_ex(..., "my_function", ...)`).
-- **Hover Information:** Hover over a function or variable to see its full definition without leaving your current context.
-- **Real-time Diagnostics:** The extension warns you if an `#include` cannot be found, helping you fix errors before you even compile.
-- **Integrated Compilation:** Compile your plugins directly from VS Code with a single command.
+- **💡 Hover Information:** Hover over a function or variable to seamlessly read its full definition and documentation without leaving your current context.
+- **⚡ Real-time Diagnostics:** The extension boldly warns you if an `#include` cannot be found or resolving fails, helping you fix errors long before compiling.
+- **🛠️ Integrated & Custom Compilation:** Compile your plugins instantly from VS Code using unified tasks setup or custom local environment pathways.
 
 ## 🚀 Installation
 
