@@ -4,3 +4,5 @@ node_modules
 .env
 context.md
 .agent
+dist
+*.vsix

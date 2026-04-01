@@ -2,7 +2,7 @@
     "name": "amxx-pawn-language-editor",
     "displayName": "%extension.displayName%",
     "description": "%extension.description%",
-    "version": "1.2.3",
+    "version": "1.2.4",
     "publisher": "iceeedR",
     "license": "GPL-3.0",
     "icon": "images/extension-logo.png",
@@ -36,7 +36,7 @@
         "Snippets"
     ],
     "activationEvents": [],
-    "main": "./build/client/client",
+    "main": "./dist/client.js",
     "l10n": "./l10n",
     "contributes": {
         "languages": [
@@ -166,14 +166,16 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile",
-        "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./"
+        "vscode:prepublish": "npm run esbuild",
+        "compile": "tsc -noEmit -p ./",
+        "esbuild": "node esbuild.js --production",
+        "watch": "node esbuild.js --watch"
     },
     "devDependencies": {
         "@types/node": "^18.0.0",
         "@types/vscode": "^1.75.0",
         "@vscode/test-electron": "^2.3.0",
+        "esbuild": "^0.27.4",
         "typescript": "^5.0.0"
     },
     "dependencies": {
