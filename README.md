@@ -1,8 +1,8 @@
-# AMXXPawn Language Service para Visual Studio Code
+# AMXXPawn Language - Extended
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/NiceFeatures/amxxpawn-language/master/images/extension-logo.png" alt="AMXXPawn Language Service Logo" width="128">
-  <h1 align="center">AMXXPawn Language Service</h1>
+  <img src="images/extension-logo.png" alt="AMXXPawn Language Extended Logo" width="128">
+  <h1 align="center">AMXXPawn Language - Extended</h1>
 </p>
 
 <p align="center">
