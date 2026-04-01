@@ -6,8 +6,11 @@
 </p>
 
 <p align="center">
-  <strong>Uma experiência de desenvolvimento moderna e poderosa para a clássica linguagem AMXXPawn, diretamente no seu VS Code.</strong>
+  <strong>Uma experiência de desenvolvimento moderna e estendida para a clássica linguagem AMXXPawn, diretamente no seu VS Code.</strong>
 </p>
+
+> [!IMPORTANT]
+> **DISCLAIMER:** This extension ("AMXXPawn Language - Extended") is a **fork** of the original [AMXXPawn Language](https://marketplace.visualstudio.com/items?itemName=KliPPy.amxxpawn-language) extension by KliPPy. It is not affiliated with the original author. This fork includes specific enhancements for local workflows, improved compilation tasks, and targeted syntax additions that are not present in the original version.
 
 <p align="center">
     <a href="https://marketplace.visualstudio.com/items?itemName=iceeedR.amxx-pawn-language-editor">
@@ -24,9 +27,9 @@ Este projeto ressuscita e moderniza a experiência de desenvolvimento para scrip
 
 Ela transforma o VS Code em uma IDE poderosa para Pawn, trazendo funcionalidades que antes eram exclusivas de linguagens mais novas.
 
-## ✨ Funcionalidades Principais
+## ✨ Funcionalidades Principais (Versão Extended)
 
-Esta extensão vai muito além de um simples colorizador de sintaxe. Ela oferece um **Language Server** completo com:
+Diferente do original, esta versão **Extended** traz otimizações focadas em workflows locais e customizados, juntamente com todas as ferramentas de **Language Server**:
 
 * **IntelliSense Avançado:** Autocompletar para funções, constantes e variáveis.
 * **Navegação de Código Inteligente (`Go to Definition`):** Pressione `Ctrl+Click` para pular instantaneamente para a definição de:

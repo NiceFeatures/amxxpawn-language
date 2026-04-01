@@ -1,6 +1,6 @@
 {
-        "extension.displayName": "AMXXPawn Language Service",
-        "extension.description": "AMXXPawn Language Service",
+        "extension.displayName": "AMXXPawn Language - Extended",
+        "extension.description": "Um fork estendido e customizado da extensão AMXXPawn Language original, com ferramentas aprimoradas e melhorias específicas do projeto.",
         "configuration.title": "Configuração do AMXXPawn",
         "configuration.language.reparseInterval.description": "O menor intervalo permitido entre duas reanálises de sintaxe do mesmo arquivo",
         "configuration.language.webApiLinks.description": "Se diretivas #include com nomes de arquivo do pacote AMXX devem apontar para a referência Web API",
