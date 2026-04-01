@@ -7,6 +7,15 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.2.4] - 2026-04-01
+### Added
+- **Identidade Visual**: Atualização do Logo e de todos os metadados da extensão para fortalecer o projeto e diferenciar de outras versões na loja.
+- * **Visual Identity**: Logo and metadata update to strengthen the project and differentiate from other versions in the store.*
+- **Performance**: Integração profunda com o moderno empacotador `esbuild`. A extensão foi comprimida de centenas de arquivos para um formato denso de ~14 arquivos, resultando em um **carregamento/ativação quase instantânea** no VS Code. O delay de leitura do HD caiu drasticamente.
+- * **Performance**: Deep integration with the modern `esbuild` bundler. The extension was compressed from hundreds of files to a dense format of ~14 files, resulting in **near-instant loading/activation** in VS Code. HDD read delay dropped drastically.*
+
+---
+
 ## [Version 1.2.2] - 2026-03-03
 ### Fixed
 - Corrigido o realce semântico de `#include`: a diretiva e o nome do arquivo agora recebem cores distintas.

@@ -31,6 +31,15 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.2.4)
+### Added
+- **Identidade Visual**: Atualização do Logo e branding da extensão.
+- * **Visual Identity**: Extension logo and branding update.*
+- **Performance de Carregamento**: Integrado o poderoso compilador `esbuild` no core da extensão. Reduzimos a quantidade de fragmentos carregados de 276 para apenas 14 arquivos finais otimizados (`dist/`). O tempo de ativação do seu Language Server e inicialização do VSCode agora é quase instantâneo, batendo recordes de velocidade.
+- * **Loading Performance**: Integrated the powerful `esbuild` bundler into the extension's core. We reduced the amount of loaded fragments from 276 strictly to 14 optimized final files (`dist/`). Start up and Language Server activation time is now nearly instantaneous, hitting record speeds.*
+
+---
+
 ## ✨ What's New (v1.2.2)
 ### Fixed
 - Realce semântico para `#include`: diretiva e nome do arquivo agora têm cores distintas.
@@ -173,8 +182,8 @@ This project is a modernization of a legacy codebase, now using TypeScript and t
    `git clone https://github.com/NiceFeatures/amxxpawn-language.git`
 2. Install dependencies:  
    `npm install`
-3. Compile the project:  
-   `npm run compile`
+3. Compile the project (bundle with esbuild):  
+   `npm run esbuild`
 4. Open the project in VS Code and press `F5` to start a debugging session.
 
 ## 🙏 Acknowledgements

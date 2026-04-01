@@ -106,7 +106,7 @@ Este projeto é uma modernização de uma base de código legada, agora utilizan
 
 1.  Clone o repositório: `git clone https://github.com/NiceFeatures/amxxpawn-language.git`
 2.  Instale as dependências: `npm install`
-3.  Compile o projeto: `npm run compile`
+3.  Compile e faça o bundle (`esbuild`): `npm run esbuild`
 4.  Abra o projeto no VS Code e pressione `F5` para iniciar uma sessão de depuração.
 
 ## 🙏 Agradecimentos
