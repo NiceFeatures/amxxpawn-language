@@ -31,6 +31,9 @@ export function activate(ctx: VSC.ExtensionContext) {
         synchronize: {
             configurationSection: 'amxxpawn',
             fileEvents: VSC.workspace.createFileSystemWatcher('**/*.{sma,inc}')
+        },
+        initializationOptions: {
+            globalStoragePath: ctx.globalStorageUri.fsPath
         }
     };
 
@@ -46,7 +49,10 @@ export function activate(ctx: VSC.ExtensionContext) {
     const outputChannel = VSC.window.createOutputChannel('AMXXPC Output / AMXXPawn');
     diagnosticCollection = VSC.languages.createDiagnosticCollection('amxxpawn');
     
-    const commandCompile = VSC.commands.registerCommand('amxxpawn.compile', Commands.compile.bind(null, outputChannel, diagnosticCollection, ctx));
+    const onCompilerDownloaded = () => {
+        try { client.sendNotification('amxxpawn/reparseAll'); } catch { /* ignore */ }
+    };
+    const commandCompile = VSC.commands.registerCommand('amxxpawn.compile', Commands.compile.bind(null, outputChannel, diagnosticCollection, ctx, onCompilerDownloaded));
     const commandCompileLocal = VSC.commands.registerCommand('amxxpawn.compileLocal', Commands.compileLocal.bind(null, outputChannel, diagnosticCollection));
 
     VSC.workspace.onDidChangeTextDocument(onDidChangeTextDocument);

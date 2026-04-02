@@ -70,7 +70,7 @@ function findAmxxpc(dir: string): string | null {
     return null;
 }
 
-async function ensureCompiler(context: VSC.ExtensionContext): Promise<string | null> {
+async function ensureCompiler(context: VSC.ExtensionContext, onDownloaded?: () => void): Promise<string | null> {
     const compilerDir = Path.join(context.globalStorageUri.fsPath, 'compiler');
 
     // Check if already extracted
@@ -101,6 +101,7 @@ async function ensureCompiler(context: VSC.ExtensionContext): Promise<string | n
             const extracted = findAmxxpc(compilerDir);
             if (extracted) {
                 VSC.window.showInformationMessage(VSC.l10n.t('✅ AMXXPawn compiler downloaded and ready!'));
+                if (onDownloaded) onDownloaded();
                 return extracted;
             }
 
@@ -341,7 +342,7 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
     });
 }
 
-export async function compile(outputChannel: VSC.OutputChannel, diagnosticCollection: VSC.DiagnosticCollection, context: VSC.ExtensionContext) {
+export async function compile(outputChannel: VSC.OutputChannel, diagnosticCollection: VSC.DiagnosticCollection, context: VSC.ExtensionContext, onCompilerDownloaded?: () => void) {
     outputChannel.clear();
     const config = VSC.workspace.getConfiguration('amxxpawn');
     const compilerSettings = config.get<Settings.CompilerSettings>('compiler');
@@ -357,7 +358,7 @@ export async function compile(outputChannel: VSC.OutputChannel, diagnosticCollec
     // Auto-download fallback: if no compiler configured, try to download from GitHub
     if (!executablePath || !FS.existsSync(executablePath)) {
         outputChannel.appendLine(VSC.l10n.t('⚙️  No compiler configured. Attempting auto-download...'));
-        const autoPath = await ensureCompiler(context);
+        const autoPath = await ensureCompiler(context, onCompilerDownloaded);
         if (!autoPath) {
             outputChannel.appendLine(VSC.l10n.t('❌ Compiler not found. Configure "amxxpawn.compiler.executablePath" or check your internet connection.'));
             return;

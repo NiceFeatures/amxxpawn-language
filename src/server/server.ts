@@ -49,6 +49,8 @@ let documentsData: Map<string, Types.DocumentData> = new Map();
 let dependenciesData: Map<DM.FileDependency, Types.DocumentData> = new Map();
 let workspaceRoot: string | null = null;
 let hasConfigurationCapability: boolean = false;
+let globalStoragePath: string | null = null;
+let cachedAutoIncludePath: string | null = null;
 
 // --- Fix #2: Cache de conteúdo de includes ---
 const includeContentCache: Map<string, string> = new Map();
@@ -60,6 +62,10 @@ const REPARSE_DELAY = 300; // ms
 connection.onInitialize((params: InitializeParams): InitializeResult => {
     workspaceRoot = params.rootUri;
     hasConfigurationCapability = !!(params.capabilities.workspace && !!params.capabilities.workspace.configuration);
+
+    if (params.initializationOptions && params.initializationOptions.globalStoragePath) {
+        globalStoragePath = params.initializationOptions.globalStoragePath;
+    }
 
     return {
         capabilities: {
@@ -99,6 +105,12 @@ connection.onDidChangeConfiguration(async () => {
         }
     }
     // Limpa cache de includes quando configuração muda (paths podem ter mudado)
+    includeContentCache.clear();
+    documentsManager.all().forEach((doc) => scheduleReparse(doc));
+});
+
+connection.onNotification('amxxpawn/reparseAll', () => {
+    cachedAutoIncludePath = null;
     includeContentCache.clear();
     documentsManager.all().forEach((doc) => scheduleReparse(doc));
 });
@@ -317,6 +329,33 @@ function resolveIncludePath(filename: string, documentPath: string, localTo: str
     const finalIncludePaths = [...resolvedIncludePaths];
     if (localTo !== undefined) {
         finalIncludePaths.unshift(localTo);
+    }
+
+    if (globalStoragePath) {
+        if (cachedAutoIncludePath && FS.existsSync(cachedAutoIncludePath)) {
+            finalIncludePaths.push(cachedAutoIncludePath);
+        } else {
+            const compilerDir = Path.join(globalStoragePath, 'compiler');
+            const directInclude = Path.join(compilerDir, 'include');
+            if (FS.existsSync(directInclude)) {
+                cachedAutoIncludePath = directInclude;
+                finalIncludePaths.push(directInclude);
+            } else {
+                try {
+                    const entries = FS.readdirSync(compilerDir, { withFileTypes: true });
+                    for (const entry of entries) {
+                        if (entry.isDirectory()) {
+                            const nestedInclude = Path.join(compilerDir, entry.name, 'include');
+                            if (FS.existsSync(nestedInclude)) {
+                                cachedAutoIncludePath = nestedInclude;
+                                finalIncludePaths.push(nestedInclude);
+                                break;
+                            }
+                        }
+                    }
+                } catch { /* ignore */ }
+            }
+        }
     }
 
     for (const includePath of finalIncludePaths) {
