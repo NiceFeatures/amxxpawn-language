@@ -9,7 +9,7 @@ import * as VSC from 'vscode';
 import * as Settings from '../common/settings-types';
 import * as Helpers from '../common/helpers';
 
-const COMPILER_ZIP_URL = 'https://github.com/NiceFeatures/amxxpawn-language/raw/main/compiler.zip';
+const COMPILER_ZIP_URL = 'https://github.com/NiceFeatures/amxxpawn-language/raw/master/compiler.zip';
 
 function downloadFile(url: string, destPath: string): Promise<void> {
     return new Promise((resolve, reject) => {

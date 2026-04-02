@@ -148,9 +148,9 @@ Unlike the original extension, this **Extended** version provides tailored optim
 
 You can also install it directly from the [Marketplace page](https://marketplace.visualstudio.com/items?itemName=iceeedR.amxx-pawn-language-editor).
 
-## ⚙️ Configuration (Essential Step!)
+## ⚙️ Configuration (Optional Customization)
 
-For the extension to work 100%, you **must** tell it where your AMXX compiler and `include` files are located.
+By default, the extension **automatically downloads and sets up the AMXX compiler for you (Zero Configuration!)**. However, if you want to use a specific, custom compiler version, you can tell the extension where it is located.
 
 1. Open VS Code Settings (`Ctrl + ,`).
 2. Click the "Open settings.json" icon in the upper-right corner.
@@ -159,10 +159,11 @@ For the extension to work 100%, you **must** tell it where your AMXX compiler an
 ```json
 {
     // Path to the amxxpc compiler executable.
+    // (Leave empty or undefined to use the auto-downloaded compiler)
     "amxxpawn.compiler.executablePath": "C:\\path\\to\\your\\compiler\\amxxpc.exe",
 
     // List of folders where the extension should look for .inc files.
-    // ESSENTIAL for "Go to Definition" of native functions to work.
+    // (Leave empty to use the auto-downloaded compiler's include directory)
     "amxxpawn.compiler.includePaths": [
         "C:\\path\\to\\your\\compiler\\include"
     ],

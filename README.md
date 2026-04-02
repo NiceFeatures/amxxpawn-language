@@ -42,6 +42,7 @@ Diferente do original, esta versão **Extended** traz otimizações focadas em w
     * **Funções em Tasks:** Navegue diretamente para a função quando o nome dela é passado como texto (ex: `set_task_ex(..., "minha_funcao", ...)`).
 * **Informações ao Passar o Mouse (Hover):** Passe o mouse sobre uma função ou variável para ver sua definição completa sem sair do lugar.
 * **Diagnósticos em Tempo Real:** A extensão avisa se um `#include` não pode ser encontrado, ajudando a corrigir erros antes mesmo de compilar.
+* **Download Automático do Compilador (Zero Configuração):** Não configurou um compilador? A extensão baixa e configura o compilador mais recente do repositório automaticamente para você.
 * **Compilação Integrada:** Compile seus plugins diretamente do VS Code com um único comando.
 
 ## 🚀 Instalação
@@ -54,9 +55,9 @@ Diferente do original, esta versão **Extended** traz otimizações focadas em w
 
 Você também pode instalar diretamente pela [página do Marketplace](https://marketplace.visualstudio.com/items?itemName=iceeedR.amxx-pawn-language-editor).
 
-## ⚙️ Configuração (Passo Essencial!)
+## ⚙️ Configuração (Opcional - Customização)
 
-Para que a extensão funcione 100%, você **precisa** dizer a ela onde seu compilador AMXX e os arquivos de `include` estão.
+Por padrão, a extensão **baixa e configura automaticamente o compilador AMXX (Zero Configuração!)**. Porém, se você quiser usar um compilador próprio ou de uma versão específica, você pode informar o caminho para a extensão.
 
 1.  Abra as Configurações do VS Code (`Ctrl + ,`).
 2.  Clique no ícone de "Abrir settings.json" no canto superior direito.
@@ -67,10 +68,11 @@ Para que a extensão funcione 100%, você **precisa** dizer a ela onde seu compi
     // ...outras configurações...
 
     // Caminho para o executável do compilador amxxpc.
+    // (Deixe vazio ou não defina nada para usar o compilador padrão auto-baixado)
     "amxxpawn.compiler.executablePath": "C:\\caminho\\para\\seu\\compiler\\amxxpc.exe",
 
     // Lista de pastas onde a extensão deve procurar por arquivos .inc.
-    // ESSENCIAL para o "Go to Definition" de funções nativas funcionar.
+    // (Deixe vazio para usar a pasta include do compilador padrão auto-baixado)
     "amxxpawn.compiler.includePaths": [
         "C:\\caminho\\para\\seu\\compiler\\include"
     ]
