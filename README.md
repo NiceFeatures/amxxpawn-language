@@ -19,6 +19,9 @@
     <a href="https://marketplace.visualstudio.com/items?itemName=iceeedR.amxx-pawn-language-editor">
         <img alt="Visual Studio Marketplace Installs" src="https://img.shields.io/visual-studio-marketplace/i/iceeedR.amxx-pawn-language-editor?style=for-the-badge&color=blue">
     </a>
+    <a href="https://open-vsx.org/extension/iceeedR/amxx-pawn-language-editor">
+        <img alt="Open VSX Installs" src="https://img.shields.io/open-vsx/dt/iceeedR/amxx-pawn-language-editor?style=for-the-badge&color=blue">
+    </a>
 </p>
 
 ---
