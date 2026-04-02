@@ -7,6 +7,19 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.2.5] - 2026-04-02
+### Added
+- **Auto-Download do Compilador**: Quando nenhum compilador está configurado, a extensão baixa automaticamente o `compiler.zip` do repositório GitHub, extrai e usa — zero configuração necessária.
+- * **Auto-Download Compiler**: When no compiler is configured, the extension automatically downloads `compiler.zip` from the GitHub repository, extracts and uses it — zero configuration required.*
+- **Find All References**: `Shift+F12` em qualquer símbolo (variável, função, constante) exibe todas as ocorrências no documento atual e nos includes carregados.
+- * **Find All References**: `Shift+F12` on any symbol (variable, function, constant) shows all occurrences in the current document and loaded includes.*
+- **Rename Symbol**: `F2` em qualquer símbolo renomeia todas as ocorrências no documento atual. Keywords reservadas do Pawn são protegidas contra renomeação acidental.
+- * **Rename Symbol**: `F2` on any symbol renames all occurrences in the current document. Reserved Pawn keywords are protected against accidental renaming.*
+- **Inline Error Display**: Erros de compilação agora são exibidos diretamente na linha do código como texto inline (ao lado do código), além do sublinhado vermelho tradicional nos diagnósticos.
+- * **Inline Error Display**: Compilation errors are now displayed directly on the code line as inline text (next to the code), in addition to the traditional red underline in diagnostics.*
+
+---
+
 ## [Version 1.2.4] - 2026-04-01
 ### Added
 - **Identidade Visual**: Atualização do Logo e de todos os metadados da extensão para fortalecer o projeto e diferenciar de outras versões na loja.

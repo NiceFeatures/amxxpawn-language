@@ -2,7 +2,7 @@
     "name": "amxx-pawn-language-editor",
     "displayName": "%extension.displayName%",
     "description": "%extension.description%",
-    "version": "1.2.4",
+    "version": "1.2.5",
     "publisher": "iceeedR",
     "license": "GPL-3.0",
     "icon": "images/extension-logo.png",
@@ -149,7 +149,8 @@
             {
                 "command": "amxxpawn.compile",
                 "title": "%command.compile.title%",
-                "category": "%command.category%"
+                "category": "%command.category%",
+                "icon": "$(play)"
             },
             {
                 "command": "amxxpawn.compileLocal",
@@ -163,7 +164,16 @@
                 "key": "f9",
                 "when": "editorTextFocus && editorLangId == 'amxxpawn'"
             }
-        ]
+        ],
+        "menus": {
+            "editor/title": [
+                {
+                    "command": "amxxpawn.compile",
+                    "when": "resourceExtname == .sma || resourceExtname == .inc",
+                    "group": "navigation"
+                }
+            ]
+        }
     },
     "scripts": {
         "vscode:prepublish": "npm run esbuild",

@@ -3,9 +3,116 @@
 import * as FS from 'fs';
 import * as Path from 'path';
 import * as CP from 'child_process';
+import * as https from 'https';
+import * as http from 'http';
 import * as VSC from 'vscode';
 import * as Settings from '../common/settings-types';
 import * as Helpers from '../common/helpers';
+
+const COMPILER_ZIP_URL = 'https://github.com/NiceFeatures/amxxpawn-language/raw/main/compiler.zip';
+
+function downloadFile(url: string, destPath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const file = FS.createWriteStream(destPath);
+        const doRequest = (requestUrl: string, redirectCount: number) => {
+            if (redirectCount > 5) {
+                file.close();
+                reject(new Error('Too many redirects'));
+                return;
+            }
+            const client = requestUrl.startsWith('https') ? https : http;
+            client.get(requestUrl, (response) => {
+                if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                    doRequest(response.headers.location, redirectCount + 1);
+                    return;
+                }
+                if (response.statusCode !== 200) {
+                    file.close();
+                    reject(new Error(`Download failed with status ${response.statusCode}`));
+                    return;
+                }
+                response.pipe(file);
+                file.on('finish', () => { file.close(); resolve(); });
+                file.on('error', (err) => { file.close(); reject(err); });
+            }).on('error', (err) => { file.close(); reject(err); });
+        };
+        doRequest(url, 0);
+    });
+}
+
+function extractZip(zipPath: string, destDir: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const cmd = process.platform === 'win32'
+            ? `powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force"`
+            : `unzip -o "${zipPath}" -d "${destDir}"`;
+        CP.exec(cmd, (error) => {
+            if (error) reject(error);
+            else resolve();
+        });
+    });
+}
+
+function findAmxxpc(dir: string): string | null {
+    const exeName = process.platform === 'win32' ? 'amxxpc.exe' : 'amxxpc';
+    const direct = Path.join(dir, exeName);
+    if (FS.existsSync(direct)) return direct;
+
+    // Check subdirectories (e.g. compiler/)
+    try {
+        const entries = FS.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            if (entry.isDirectory()) {
+                const nested = Path.join(dir, entry.name, exeName);
+                if (FS.existsSync(nested)) return nested;
+            }
+        }
+    } catch { /* ignore */ }
+    return null;
+}
+
+async function ensureCompiler(context: VSC.ExtensionContext): Promise<string | null> {
+    const compilerDir = Path.join(context.globalStorageUri.fsPath, 'compiler');
+
+    // Check if already extracted
+    const existing = findAmxxpc(compilerDir);
+    if (existing) return existing;
+
+    // Download and extract
+    return VSC.window.withProgress({
+        location: VSC.ProgressLocation.Notification,
+        title: VSC.l10n.t('AMXXPawn: Downloading compiler...'),
+        cancellable: false
+    }, async (progress) => {
+        try {
+            // Ensure directories exist
+            FS.mkdirSync(compilerDir, { recursive: true });
+
+            const zipPath = Path.join(compilerDir, 'compiler.zip');
+
+            progress.report({ message: VSC.l10n.t('Downloading from GitHub...') });
+            await downloadFile(COMPILER_ZIP_URL, zipPath);
+
+            progress.report({ message: VSC.l10n.t('Extracting compiler...') });
+            await extractZip(zipPath, compilerDir);
+
+            // Clean up zip
+            try { FS.unlinkSync(zipPath); } catch { /* ignore */ }
+
+            const extracted = findAmxxpc(compilerDir);
+            if (extracted) {
+                VSC.window.showInformationMessage(VSC.l10n.t('✅ AMXXPawn compiler downloaded and ready!'));
+                return extracted;
+            }
+
+            VSC.window.showErrorMessage(VSC.l10n.t('❌ Could not find amxxpc after extraction.'));
+            return null;
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            VSC.window.showErrorMessage(VSC.l10n.t('❌ Failed to download compiler: {0}', message));
+            return null;
+        }
+    });
+}
 
 interface OutputDiagnostic {
     type: string;
@@ -18,11 +125,16 @@ class OutputData {
     public diagnostics: OutputDiagnostic[] = [];
 };
 
+export const inlineErrorDecorationType = VSC.window.createTextEditorDecorationType({
+    isWholeLine: true
+});
+
 function doCompile(executablePath: string, inputPath: string, compilerSettings: Settings.CompilerSettings, outputChannel: VSC.OutputChannel, diagnosticCollection: VSC.DiagnosticCollection) {
     diagnosticCollection.clear();
+    VSC.window.visibleTextEditors.forEach(e => e.setDecorations(inlineErrorDecorationType, []));
 
     const startTime = process.hrtime();
-
+    // ... rest of doCompile logic to outputData.entries
     let outputPath = '';
     const workspaceRoot = VSC.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
@@ -100,8 +212,37 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
             });
         }
 
+        const resolvedData = new Map<string, OutputData>();
+
+        for (const [filePath, data] of outputData.entries()) {
+            let resolvedFilePath = filePath;
+            if (!Path.isAbsolute(filePath)) {
+                if (Path.basename(filePath) === Path.basename(inputPath)) {
+                    resolvedFilePath = inputPath;
+                } else {
+                    const testLocalPath = Path.join(Path.dirname(inputPath), filePath);
+                    if (FS.existsSync(testLocalPath)) {
+                        resolvedFilePath = VSC.Uri.file(testLocalPath).fsPath;
+                    } else if (workspaceRoot) {
+                        const testWorkspacePath = Path.join(workspaceRoot, filePath);
+                        if (FS.existsSync(testWorkspacePath)) {
+                            resolvedFilePath = VSC.Uri.file(testWorkspacePath).fsPath;
+                        }
+                    }
+                }
+            } else {
+                resolvedFilePath = VSC.Uri.file(filePath).fsPath;
+            }
+            let previousData = resolvedData.get(resolvedFilePath);
+            if (previousData) {
+                previousData.diagnostics.push(...data.diagnostics);
+            } else {
+                resolvedData.set(resolvedFilePath, data);
+            }
+        }
+
         // Limpa o painel de problemas de arquivos que não têm mais erros
-        const filesWithError = new Set(outputData.keys());
+        const filesWithError = new Set(resolvedData.keys());
         diagnosticCollection.forEach((uri) => {
             if (!filesWithError.has(uri.fsPath)) {
                 diagnosticCollection.delete(uri);
@@ -114,8 +255,9 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
             outputChannel.appendLine('--------------------------------------------------\n');
         }
 
-        for (const [filePath, data] of outputData.entries()) {
+        for (const [filePath, data] of resolvedData.entries()) {
             const resourceDiagnostics: VSC.Diagnostic[] = [];
+            const decorationOptions: VSC.DecorationOptions[] = [];
 
             outputChannel.appendLine(VSC.l10n.t('📄 File: {0}', filePath));
 
@@ -123,11 +265,31 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
                 const type = diag.type.toUpperCase();
                 outputChannel.appendLine(VSC.l10n.t('  [{0}] Line {1}: {2}', type, String(diag.startLine), diag.message));
 
-                const range = new VSC.Range(diag.startLine - 1, 0, (diag.endLine || diag.startLine) - 1, Number.MAX_VALUE);
+                const range = new VSC.Range(diag.startLine - 1, 0, (diag.endLine || diag.startLine) - 1, 10000);
                 const severity = type === 'ERROR' ? VSC.DiagnosticSeverity.Error : VSC.DiagnosticSeverity.Warning;
                 resourceDiagnostics.push(new VSC.Diagnostic(range, diag.message, severity));
+
+                decorationOptions.push({
+                    range: new VSC.Range(diag.startLine - 1, 0, diag.startLine - 1, 10000),
+                    renderOptions: {
+                        after: {
+                            contentText: `   // ${diag.message}`,
+                            color: new VSC.ThemeColor(type === 'ERROR' ? 'errorForeground' : 'editorWarning.foreground'),
+                            fontStyle: 'italic',
+                            margin: '0 0 0 20px',
+                        }
+                    }
+                });
             });
-            diagnosticCollection.set(VSC.Uri.file(filePath), resourceDiagnostics);
+            const resourceUri = VSC.Uri.file(filePath);
+            diagnosticCollection.set(resourceUri, resourceDiagnostics);
+            
+            VSC.window.visibleTextEditors.forEach(e => {
+                if (e.document.uri.fsPath === resourceUri.fsPath) {
+                    e.setDecorations(inlineErrorDecorationType, decorationOptions);
+                }
+            });
+
             outputChannel.appendLine('');
         }
 
@@ -179,7 +341,7 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
     });
 }
 
-export function compile(outputChannel: VSC.OutputChannel, diagnosticCollection: VSC.DiagnosticCollection) {
+export async function compile(outputChannel: VSC.OutputChannel, diagnosticCollection: VSC.DiagnosticCollection, context: VSC.ExtensionContext) {
     outputChannel.clear();
     const config = VSC.workspace.getConfiguration('amxxpawn');
     const compilerSettings = config.get<Settings.CompilerSettings>('compiler');
@@ -189,12 +351,26 @@ export function compile(outputChannel: VSC.OutputChannel, diagnosticCollection: 
     if (!editor) { outputChannel.appendLine(VSC.l10n.t('No active Pawn editor.')); return; }
     if (editor.document.uri.scheme !== 'file') { outputChannel.appendLine(VSC.l10n.t('Input file is not on disk.')); return; }
     const inputPath = editor.document.uri.fsPath;
-    const executablePath = Helpers.resolvePathVariables(compilerSettings.executablePath, VSC.workspace.workspaceFolders?.[0]?.uri.fsPath, inputPath);
-    if (!executablePath || !FS.existsSync(executablePath)) { outputChannel.appendLine(VSC.l10n.t('❌ Compiler not found at: {0}. Check your settings.', executablePath || '')); return; }
+
+    let executablePath = Helpers.resolvePathVariables(compilerSettings.executablePath, VSC.workspace.workspaceFolders?.[0]?.uri.fsPath, inputPath);
+
+    // Auto-download fallback: if no compiler configured, try to download from GitHub
+    if (!executablePath || !FS.existsSync(executablePath)) {
+        outputChannel.appendLine(VSC.l10n.t('⚙️  No compiler configured. Attempting auto-download...'));
+        const autoPath = await ensureCompiler(context);
+        if (!autoPath) {
+            outputChannel.appendLine(VSC.l10n.t('❌ Compiler not found. Configure "amxxpawn.compiler.executablePath" or check your internet connection.'));
+            return;
+        }
+        executablePath = autoPath;
+        outputChannel.appendLine(VSC.l10n.t('✅ Using auto-downloaded compiler: {0}', executablePath));
+    }
+
+    const finalExecPath = executablePath;
     const tryCompile = () => {
-        FS.access(executablePath, FS.constants.X_OK, (err) => {
+        FS.access(finalExecPath, FS.constants.X_OK, (err) => {
             if (err) { outputChannel.appendLine(VSC.l10n.t('❌ Could not access amxxpc. Check the path and execute permissions.')); return; }
-            doCompile(executablePath, inputPath, compilerSettings, outputChannel, diagnosticCollection);
+            doCompile(finalExecPath, inputPath, compilerSettings, outputChannel, diagnosticCollection);
         });
     };
     if (editor.document.isDirty) {

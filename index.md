@@ -34,6 +34,19 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.2.5)
+### Added
+- **Auto-Download do Compilador**: Quando nenhum compilador está configurado, a extensão baixa automaticamente o `compiler.zip` do repositório GitHub — zero configuração.
+- * **Auto-Download Compiler**: When no compiler is configured, the extension automatically downloads `compiler.zip` from the GitHub repository — zero configuration.*
+- **Find All References**: `Shift+F12` em qualquer símbolo exibe todas as ocorrências no documento atual e nos includes carregados.
+- * **Find All References**: `Shift+F12` on any symbol shows all occurrences in the current document and loaded includes.*
+- **Rename Symbol**: `F2` em qualquer símbolo renomeia todas as ocorrências no documento atual. Keywords reservadas do Pawn são protegidas.
+- * **Rename Symbol**: `F2` on any symbol renames all occurrences in the current document. Reserved Pawn keywords are protected.*
+- **Inline Error Display**: Erros de compilação agora são exibidos diretamente na linha do código como texto inline, além do sublinhado vermelho.
+- * **Inline Error Display**: Compilation errors are now displayed directly on the code line as inline text, alongside the traditional red underline.*
+
+---
+
 ## ✨ What's New (v1.2.4)
 ### Added
 - **Identidade Visual**: Atualização do Logo e branding da extensão.
@@ -115,8 +128,12 @@ Unlike the original extension, this **Extended** version provides tailored optim
   - Constants defined with `#define`.
   - Global variables.
   - **Functions in Tasks:** Navigate directly to the function when its name is passed as a string (e.g., `set_task_ex(..., "my_function", ...)`).
+- **🔍 Find All References:** `Shift+F12` on any symbol to find all its occurrences across the current document and loaded includes.
+- **✏️ Rename Symbol:** `F2` to rename any variable, function, or constant across the entire document — with keyword protection.
 - **💡 Hover Information:** Hover over a function or variable to seamlessly read its full definition and documentation without leaving your current context.
 - **⚡ Real-time Diagnostics:** The extension boldly warns you if an `#include` cannot be found or resolving fails, helping you fix errors long before compiling.
+- **🔴 Inline Error Display:** Compilation errors appear directly on the code line as inline text, next to the red underline.
+- **📥 Auto-Download Compiler:** No compiler configured? The extension automatically downloads and sets up the AMXX compiler from GitHub.
 - **🛠️ Integrated & Custom Compilation:** Compile your plugins instantly from VS Code using unified tasks setup or custom local environment pathways.
 
 ## 🚀 Installation

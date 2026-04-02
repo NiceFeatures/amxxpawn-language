@@ -25,21 +25,30 @@ const pawnKeywords = [
 ];
 
 function positionToIndex(content: string, position: VSCLS.Position): number {
+    const lines = content.split('\n');
     let index = 0;
-    let line = 0;
-    while (line < position.line && index < content.length) {
-        if (content[index] === '\n') line++;
-        index++;
+    for (let i = 0; i < position.line && i < lines.length; i++) {
+        index += lines[i].length + 1; // +1 for the \n
     }
     return index + position.character;
 }
 
 function findIdentifierAtCursor(content: string, cursorIndex: number): { identifier: string; isCallable: boolean } {
     const result = { identifier: '', isCallable: false };
-    if (cursorIndex >= content.length || !StringHelpers.isAlphaNum(content[cursorIndex])) return result;
-    let start = cursorIndex;
+    // Handle cursor past end or on non-alphanumeric (e.g. \r at line end)
+    if (cursorIndex >= content.length) return result;
+    let idx = cursorIndex;
+    if (!StringHelpers.isAlphaNum(content[idx])) {
+        // Try one character back (cursor might be just after the identifier)
+        if (idx > 0 && StringHelpers.isAlphaNum(content[idx - 1])) {
+            idx = idx - 1;
+        } else {
+            return result;
+        }
+    }
+    let start = idx;
     while (start > 0 && StringHelpers.isAlphaNum(content[start - 1])) start--;
-    let end = cursorIndex;
+    let end = idx;
     while (end < content.length - 1 && StringHelpers.isAlphaNum(content[end + 1])) end++;
     result.identifier = content.substring(start, end + 1);
     let checkParen = end + 1;
@@ -536,4 +545,125 @@ export function doSignatures(content: string, position: VSCLS.Position, callable
             documentation: callable.documentation
         }]
     };
+}
+
+export function doReferences(
+    content: string, position: VSCLS.Position, documentUri: string,
+    data: Types.DocumentData, dependenciesData: Map<DM.FileDependency, Types.DocumentData>
+): VSCLS.Location[] {
+    const cursorIndex = positionToIndex(content, position);
+    const result = findIdentifierAtCursor(content, cursorIndex);
+    if (!result.identifier) return [];
+
+    const locations: VSCLS.Location[] = [];
+    const identifier = result.identifier;
+
+    // Search in current document
+    findIdentifierOccurrences(content, identifier, documentUri, locations);
+
+    // Search in dependencies
+    for (const [dep, depData] of dependenciesData.entries()) {
+        try {
+            const depUri = dep.uri;
+            const depFsPath = URI.parse(depUri).fsPath;
+            const depContent = require('fs').readFileSync(depFsPath, 'utf8');
+            findIdentifierOccurrences(depContent, identifier, depUri, locations);
+        } catch { /* ignore read errors */ }
+    }
+
+    return locations;
+}
+
+function findIdentifierOccurrences(content: string, identifier: string, uri: string, locations: VSCLS.Location[]): void {
+    const escapedId = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(?<![\\w@])${escapedId}(?![\\w@])`, 'g');
+    const lines = content.split(/\r?\n/);
+
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const line = lines[lineIndex];
+
+        // Skip comments
+        const trimmed = line.trim();
+        if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) continue;
+
+        // Remove string literals before searching
+        const noStrings = line.replace(/"[^"]*"/g, '""').replace(/'[^']*'/g, "''");
+
+        let match: RegExpExecArray | null;
+        const lineRegex = new RegExp(`(?<![\\w@])${escapedId}(?![\\w@])`, 'g');
+        while ((match = lineRegex.exec(noStrings)) !== null) {
+            locations.push(VSCLS.Location.create(uri, {
+                start: { line: lineIndex, character: match.index },
+                end: { line: lineIndex, character: match.index + identifier.length }
+            }));
+        }
+    }
+}
+
+export function doPrepareRename(
+    content: string, position: VSCLS.Position
+): { range: VSCLS.Range; placeholder: string } | null {
+    const cursorIndex = positionToIndex(content, position);
+    const result = findIdentifierAtCursor(content, cursorIndex);
+    if (!result.identifier) return null;
+
+    // Don't allow renaming keywords
+    if (pawnKeywords.includes(result.identifier)) return null;
+
+    // Find exact start/end on the line
+    const lines = content.split(/\r?\n/);
+    const line = lines[position.line];
+    const escapedId = result.identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(?<![\\w@])${escapedId}(?![\\w@])`, 'g');
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(line)) !== null) {
+        if (position.character >= match.index && position.character <= match.index + result.identifier.length) {
+            return {
+                range: {
+                    start: { line: position.line, character: match.index },
+                    end: { line: position.line, character: match.index + result.identifier.length }
+                },
+                placeholder: result.identifier
+            };
+        }
+    }
+
+    return null;
+}
+
+export function doRename(
+    content: string, position: VSCLS.Position, newName: string, documentUri: string
+): VSCLS.TextEdit[] {
+    const cursorIndex = positionToIndex(content, position);
+    const result = findIdentifierAtCursor(content, cursorIndex);
+    if (!result.identifier) return [];
+
+    if (pawnKeywords.includes(result.identifier)) return [];
+
+    const edits: VSCLS.TextEdit[] = [];
+    const identifier = result.identifier;
+    const escapedId = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const lines = content.split(/\r?\n/);
+
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const line = lines[lineIndex];
+        const trimmed = line.trim();
+        if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) continue;
+
+        const noStrings = line.replace(/"[^"]*"/g, '""').replace(/'[^']*'/g, "''");
+
+        let match: RegExpExecArray | null;
+        const lineRegex = new RegExp(`(?<![\\w@])${escapedId}(?![\\w@])`, 'g');
+        while ((match = lineRegex.exec(noStrings)) !== null) {
+            edits.push(VSCLS.TextEdit.replace(
+                {
+                    start: { line: lineIndex, character: match.index },
+                    end: { line: lineIndex, character: match.index + identifier.length }
+                },
+                newName
+            ));
+        }
+    }
+
+    return edits;
 }

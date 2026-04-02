@@ -46,7 +46,7 @@ export function activate(ctx: VSC.ExtensionContext) {
     const outputChannel = VSC.window.createOutputChannel('AMXXPC Output / AMXXPawn');
     diagnosticCollection = VSC.languages.createDiagnosticCollection('amxxpawn');
     
-    const commandCompile = VSC.commands.registerCommand('amxxpawn.compile', Commands.compile.bind(null, outputChannel, diagnosticCollection));
+    const commandCompile = VSC.commands.registerCommand('amxxpawn.compile', Commands.compile.bind(null, outputChannel, diagnosticCollection, ctx));
     const commandCompileLocal = VSC.commands.registerCommand('amxxpawn.compileLocal', Commands.compileLocal.bind(null, outputChannel, diagnosticCollection));
 
     VSC.workspace.onDidChangeTextDocument(onDidChangeTextDocument);
@@ -62,6 +62,11 @@ export function activate(ctx: VSC.ExtensionContext) {
 
 function onDidChangeTextDocument(ev: VSC.TextDocumentChangeEvent) {
     diagnosticCollection.delete(ev.document.uri);
+    VSC.window.visibleTextEditors.forEach(e => {
+        if (e.document.uri.fsPath === ev.document.uri.fsPath) {
+            e.setDecorations(Commands.inlineErrorDecorationType, []);
+        }
+    });
 }
 
 export function deactivate(): Thenable<void> | undefined {

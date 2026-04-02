@@ -24,7 +24,12 @@ import {
     DocumentLinkParams,
     Range,
     FileChangeType,
-    SemanticTokensBuilder
+    SemanticTokensBuilder,
+    ReferenceParams,
+    RenameParams,
+    PrepareRenameParams,
+    WorkspaceEdit,
+    TextEdit
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI } from 'vscode-uri';
@@ -65,6 +70,8 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
             documentSymbolProvider: true,
             completionProvider: { resolveProvider: false, triggerCharacters: ['(', ',', '=', '@'] },
             hoverProvider: true,
+            referencesProvider: true,
+            renameProvider: { prepareProvider: true },
             semanticTokensProvider: {
                 full: true,
                 legend: {
@@ -438,6 +445,38 @@ connection.languages.semanticTokens.on((params) => {
     }
 
     return builder.build();
+});
+
+// --- Find References Provider ---
+connection.onReferences((params: ReferenceParams): Location[] => {
+    const document = documentsManager.get(params.textDocument.uri);
+    if (!document) return [];
+    const data = documentsData.get(document.uri);
+    if (!data) return [];
+
+    return Parser.doReferences(document.getText(), params.position, document.uri, data, dependenciesData);
+});
+
+// --- Rename Provider ---
+connection.onPrepareRename((params: PrepareRenameParams) => {
+    const document = documentsManager.get(params.textDocument.uri);
+    if (!document) return null;
+
+    return Parser.doPrepareRename(document.getText(), params.position);
+});
+
+connection.onRenameRequest((params: RenameParams): WorkspaceEdit | null => {
+    const document = documentsManager.get(params.textDocument.uri);
+    if (!document) return null;
+
+    const edits = Parser.doRename(document.getText(), params.position, params.newName, document.uri);
+    if (edits.length === 0) return null;
+
+    return {
+        changes: {
+            [document.uri]: edits
+        }
+    };
 });
 
 documentsManager.listen(connection);
