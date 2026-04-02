@@ -13,5 +13,6 @@ LICENSE
 node_modules/**
 build/**
 esbuild.js
+context.md
 .agent/**
 .github/**
