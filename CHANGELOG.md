@@ -17,6 +17,8 @@ layout: default
 - * **Rename Symbol**: `F2` on any symbol renames all occurrences in the current document. Reserved Pawn keywords are protected against accidental renaming.*
 - **Inline Error Display**: Erros de compilação agora são exibidos diretamente na linha do código como texto inline (ao lado do código), além do sublinhado vermelho tradicional nos diagnósticos.
 - * **Inline Error Display**: Compilation errors are now displayed directly on the code line as inline text (next to the code), in addition to the traditional red underline in diagnostics.*
+- **Botão de Compilação no Editor**: Adicionado o ícone `▶️` nativo do VS Code na barra de título do editor para compilar o plugin com um clique.
+- * **Editor Compile Button**: Added the native VS Code `▶️` icon in the editor title bar to compile the plugin with a single click.*
 
 ---
 

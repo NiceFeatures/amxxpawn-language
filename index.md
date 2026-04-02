@@ -44,6 +44,8 @@ It transforms VS Code into a powerful IDE for Pawn, bringing features that were 
 - * **Rename Symbol**: `F2` on any symbol renames all occurrences in the current document. Reserved Pawn keywords are protected.*
 - **Inline Error Display**: Erros de compilação agora são exibidos diretamente na linha do código como texto inline, além do sublinhado vermelho.
 - * **Inline Error Display**: Compilation errors are now displayed directly on the code line as inline text, alongside the traditional red underline.*
+- **Botão de Compilação no Editor**: Ícone `▶️` nativo na barra de título do editor para compilar com um clique.
+- * **Editor Compile Button**: Native `▶️` icon in the editor title bar to compile with a single click.*
 
 ---
 
