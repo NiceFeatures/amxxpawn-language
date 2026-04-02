@@ -34,6 +34,17 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.2.6)
+### Added
+- **AMXXPawn: Create New Plugin (Scaffold)**: Adicionado um gerador de plugins, acessível pela Command Palette.
+- * **AMXXPawn: Create New Plugin (Scaffold)**: Added a plugin generator, accessible via Command Palette.*
+- **Templates Nativos**: O Scaffold oferece templates (Basic, Menu, Cvar/Command, Event Observer) com inclusão opcional do `#include <reapi>`.
+- * **Native Templates**: The Scaffold offers templates (Basic, Menu, Cvar/Command, Event Observer) with optional `#include <reapi>`.*
+- **Workflow Automático**: O scaffold fará o download da compilação se a pasta do compilador não for encontrada e gera o arquivo sem salvar para testes imediatos.
+- * **Automatic Workflow**: The scaffold will download the compiler if the folder is not found and generates an unsaved file for immediate usage.*
+
+---
+
 ## ✨ What's New (v1.2.5)
 ### Added
 - **Auto-Download do Compilador**: Quando nenhum compilador está configurado, a extensão baixa automaticamente o `compiler.zip` do repositório GitHub — zero configuração.
@@ -136,6 +147,7 @@ Unlike the original extension, this **Extended** version provides tailored optim
 - **⚡ Real-time Diagnostics:** The extension boldly warns you if an `#include` cannot be found or resolving fails, helping you fix errors long before compiling.
 - **🔴 Inline Error Display:** Compilation errors appear directly on the code line as inline text, next to the red underline.
 - **📥 Auto-Download Compiler:** No compiler configured? The extension automatically downloads and sets up the AMXX compiler from GitHub.
+- **🏗️ Plugin Scaffold:** Create fully equipped plugins instantly (Menus, Cvars, Event Observers) using the `AMXXPawn: Create New Plugin (Scaffold)` command.
 - **🛠️ Integrated & Custom Compilation:** Compile your plugins instantly from VS Code using unified tasks setup or custom local environment pathways.
 
 ## 🚀 Installation
