@@ -34,16 +34,19 @@ Ela transforma o VS Code em uma IDE poderosa para Pawn, trazendo funcionalidades
 
 Diferente do original, esta versão **Extended** traz otimizações focadas em workflows locais e customizados, juntamente com todas as ferramentas de **Language Server**:
 
-* **IntelliSense Avançado:** Autocompletar para funções, constantes e variáveis.
-* **Navegação de Código Inteligente (`Go to Definition`):** Pressione `Ctrl+Click` para pular instantaneamente para a definição de:
+* **🟢 IntelliSense Avançado:** Autocompletar para funções, constantes e variáveis.
+* **🎯 Navegação de Código Inteligente (`Go to Definition`):** Pressione `Ctrl+Click` para pular instantaneamente para a definição de:
     * Funções (incluindo `public`, `stock`, `native` e com prefixo `@`).
     * Constantes definidas com `#define`.
     * Variáveis globais.
     * **Funções em Tasks:** Navegue diretamente para a função quando o nome dela é passado como texto (ex: `set_task_ex(..., "minha_funcao", ...)`).
-* **Informações ao Passar o Mouse (Hover):** Passe o mouse sobre uma função ou variável para ver sua definição completa sem sair do lugar.
-* **Diagnósticos em Tempo Real:** A extensão avisa se um `#include` não pode ser encontrado, ajudando a corrigir erros antes mesmo de compilar.
-* **Download Automático do Compilador (Zero Configuração):** Não configurou um compilador? A extensão baixa e configura o compilador mais recente do repositório automaticamente para você.
-* **Compilação Integrada:** Compile seus plugins diretamente do VS Code com um único comando.
+* **🔍 Find All References:** `Shift+F12` em qualquer símbolo para encontrar todas as ocorrências no documento atual e nos includes carregados.
+* **✏️ Rename Symbol:** `F2` para renomear variáveis, funções ou constantes em todo o documento — com proteção contra renomear keywords reservadas do Pawn.
+* **💡 Informações ao Passar o Mouse (Hover):** Passe o mouse sobre uma função ou variável para ver sua definição completa sem sair do lugar.
+* **⚡ Diagnósticos em Tempo Real:** A extensão avisa se um `#include` não pode ser encontrado, ajudando a corrigir erros antes mesmo de compilar.
+* **🔴 Inline Error Display:** Erros de compilação aparecem diretamente na linha do código como texto inline, além do sublinhado vermelho tradicional.
+* **📥 Download Automático do Compilador (Zero Configuração):** Não configurou um compilador? A extensão baixa e configura o compilador automaticamente para você.
+* **🛠️ Compilação Integrada:** Compile seus plugins diretamente do VS Code com um único comando ou pelo botão ▶️ na barra do editor.
 
 ## 🚀 Instalação
 
@@ -102,6 +105,15 @@ Abra a Paleta de Comandos (`Ctrl+Shift+P`) e digite `AMXXPawn` para ver os coman
 
 * **`AMXXPawn: Compile Plugin`:** Compila o arquivo `.sma` atualmente aberto usando o `executablePath` definido nas configurações.
 * **`AMXXPawn: Compile Plugin Local`:** Procura e usa um `amxxpc.exe` que esteja na mesma pasta do arquivo `.sma` que você está editando.
+
+### Atalhos de Teclado
+
+| Atalho | Ação | Descrição |
+|--------|------|----------|
+| `Ctrl+Click` | **Go to Definition** | Pula para a definição do símbolo sob o cursor |
+| `Shift+F12` | **Find All References** | Encontra todas as ocorrências do símbolo no documento e includes |
+| `F2` | **Rename Symbol** | Renomeia todas as ocorrências de uma variável, função ou constante |
+| `▶️ botão` | **Compile Plugin** | Clique no botão play na barra do editor para compilar |
 
 ## 🛠️ Para Desenvolvedores e Contribuidores
 

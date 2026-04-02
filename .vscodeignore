@@ -9,9 +9,6 @@ tsconfig.json
 **/*.log
 package-lock.json
 _config.yml
-index.md
-CHANGELOG.md
-README.md
 LICENSE
 node_modules/**
 build/**

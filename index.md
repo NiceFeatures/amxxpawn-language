@@ -195,6 +195,15 @@ Open the Command Palette (`Ctrl+Shift+P`) and type `AMXXPawn` to see the availab
 - **AMXXPawn: Compile Plugin** — Compiles the currently open `.sma` file using the `executablePath` defined in your settings.
 - **AMXXPawn: Compile Plugin Local** — Searches for and uses an `amxxpc.exe` located in the same folder as the `.sma` file you are editing.
 
+### Keyboard Shortcuts
+
+| Shortcut | Action | Description |
+|----------|--------|-------------|
+| `Ctrl+Click` | **Go to Definition** | Jump to the definition of the symbol under the cursor |
+| `Shift+F12` | **Find All References** | Find all occurrences of the symbol in the current document and includes |
+| `F2` | **Rename Symbol** | Rename all occurrences of a variable, function, or constant in the document |
+| `▶️ button` | **Compile Plugin** | Click the play button in the editor title bar to compile |
+
 ## 🛠️ For Developers and Contributors
 
 This project is a modernization of a legacy codebase, now using TypeScript and the latest `vscode-languageclient` APIs. Contributions are very welcome!
