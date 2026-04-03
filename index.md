@@ -34,6 +34,13 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.2.7)
+### Added
+- **Configuração de Erros Inline**: Adicionada a opção `amxxpawn.compiler.inlineErrors` para ativar mensagens de erro nativas inline.
+- * **Inline Errors Configuration**: Added the `amxxpawn.compiler.inlineErrors` setting to enable native inline error messages.*
+
+---
+
 ## ✨ What's New (v1.2.6)
 ### Added
 - **AMXXPawn: Create New Plugin (Scaffold)**: Adicionado um gerador de plugins, acessível pela Command Palette.
@@ -179,6 +186,10 @@ By default, the extension **automatically downloads and sets up the AMXX compile
     "amxxpawn.compiler.includePaths": [
         "C:\\path\\to\\your\\compiler\\include"
     ],
+
+    // Enables or disables inline text errors in the editor (false by default).
+    // Keep it false if you use extensions like Error Lens to avoid duplicate messages.
+    "amxxpawn.compiler.inlineErrors": false,
 
     // --- RECOMMENDED SETTING ---
     // For a cleaner and smarter autocomplete experience,

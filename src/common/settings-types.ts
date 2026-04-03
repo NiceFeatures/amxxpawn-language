@@ -7,6 +7,7 @@ export interface CompilerSettings {
     showInfoMessages: boolean;
     reformatOutput: boolean;
     switchToOutput: boolean;
+    inlineErrors: boolean;
 };
 
 export interface LanguageSettings {

@@ -7,6 +7,24 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.2.7] - 2026-04-03
+### Added
+- **Configuração de Erros Inline**: Adicionada a opção `amxxpawn.compiler.inlineErrors` (falso por padrão) para ativar os erros na linha caso você não utilize algo como a extensão Error Lens.
+- * **Inline Errors Configuration**: Added the `amxxpawn.compiler.inlineErrors` setting (false by default) to enable inline error display, for users who do not use extensions like Error Lens.*
+
+---
+
+## [Version 1.2.6] - 2026-04-02
+### Added
+- **AMXXPawn: Create New Plugin (Scaffold)**: Adicionado um gerador de plugins, acessível pela Command Palette.
+- * **AMXXPawn: Create New Plugin (Scaffold)**: Added a plugin generator, accessible via Command Palette.*
+- **Templates Nativos**: O Scaffold oferece templates (Basic, Menu, Cvar/Command, Event Observer) com inclusão opcional do `#include <reapi>`.
+- * **Native Templates**: The Scaffold offers templates (Basic, Menu, Cvar/Command, Event Observer) with optional `#include <reapi>`.*
+- **Workflow Automático**: O scaffold fará o download da compilação se a pasta do compilador não for encontrada e gera o arquivo sem salvar para testes imediatos.
+- * **Automatic Workflow**: The scaffold will download the compiler if the folder is not found and generates an unsaved file for immediate usage.*
+
+---
+
 ## [Version 1.2.5] - 2026-04-02
 ### Added
 - **Auto-Download do Compilador**: Quando nenhum compilador está configurado, a extensão baixa automaticamente o `compiler.zip` do repositório GitHub, extrai e usa — zero configuração necessária.

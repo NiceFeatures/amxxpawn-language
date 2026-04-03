@@ -270,17 +270,19 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
                 const severity = type === 'ERROR' ? VSC.DiagnosticSeverity.Error : VSC.DiagnosticSeverity.Warning;
                 resourceDiagnostics.push(new VSC.Diagnostic(range, diag.message, severity));
 
-                decorationOptions.push({
-                    range: new VSC.Range(diag.startLine - 1, 0, diag.startLine - 1, 10000),
-                    renderOptions: {
-                        after: {
-                            contentText: `   // ${diag.message}`,
-                            color: new VSC.ThemeColor(type === 'ERROR' ? 'errorForeground' : 'editorWarning.foreground'),
-                            fontStyle: 'italic',
-                            margin: '0 0 0 20px',
+                if (compilerSettings.inlineErrors !== false) {
+                    decorationOptions.push({
+                        range: new VSC.Range(diag.startLine - 1, 0, diag.startLine - 1, 10000),
+                        renderOptions: {
+                            after: {
+                                contentText: `   // ${diag.message}`,
+                                color: new VSC.ThemeColor(type === 'ERROR' ? 'errorForeground' : 'editorWarning.foreground'),
+                                fontStyle: 'italic',
+                                margin: '0 0 0 20px',
+                            }
                         }
-                    }
-                });
+                    });
+                }
             });
             const resourceUri = VSC.Uri.file(filePath);
             diagnosticCollection.set(resourceUri, resourceDiagnostics);
@@ -406,4 +408,277 @@ export function compileLocal(outputChannel: VSC.OutputChannel, diagnosticCollect
         }
         doCompile(executablePath, inputPath, compilerSettings, outputChannel, diagnosticCollection);
     });
+}
+
+export async function createPlugin(context: VSC.ExtensionContext, onCompilerDownloaded?: () => void) {
+    const config = VSC.workspace.getConfiguration('amxxpawn');
+    const compilerSettings = config.get<Settings.CompilerSettings>('compiler');
+    let executablePath = compilerSettings?.executablePath;
+
+    if (executablePath) {
+        executablePath = Helpers.resolvePathVariables(executablePath, VSC.workspace.workspaceFolders?.[0]?.uri.fsPath, '');
+    }
+
+    if (!executablePath || !FS.existsSync(executablePath)) {
+        const autoPath = await ensureCompiler(context, onCompilerDownloaded);
+        if (!autoPath) {
+            return;
+        }
+    }
+
+    const templateType = await VSC.window.showQuickPick(
+        [
+            { label: VSC.l10n.t('Basic Plugin'), description: VSC.l10n.t('Standard empty plugin'), id: 'basic' },
+            { label: VSC.l10n.t('Menu Plugin'), description: VSC.l10n.t('Plugin with a functioning AMXX Menu'), id: 'menu' },
+            { label: VSC.l10n.t('Cvar & Command Plugin'), description: VSC.l10n.t('Plugin with registered cvars and admin commands'), id: 'cvar' },
+            { label: VSC.l10n.t('Event Observer Plugin'), description: VSC.l10n.t('Plugin with hooks for DeathMsg, RoundStart, etc.'), id: 'event' }
+        ],
+        { placeHolder: VSC.l10n.t('Select a template') }
+    );
+    if (templateType === undefined) return;
+
+    const pluginName = await VSC.window.showInputBox({
+        prompt: VSC.l10n.t('Enter the plugin name (e.g. My Plugin)'),
+        value: 'My Plugin'
+    });
+    if (pluginName === undefined) return;
+
+    const pluginVersion = await VSC.window.showInputBox({
+        prompt: VSC.l10n.t('Enter the plugin version'),
+        value: '1.0.0'
+    });
+    if (pluginVersion === undefined) return;
+
+    const pluginAuthor = await VSC.window.showInputBox({
+        prompt: VSC.l10n.t('Enter the plugin author'),
+        value: 'AuthorName'
+    });
+    if (pluginAuthor === undefined) return;
+
+    const useReApi = await VSC.window.showQuickPick(
+        [VSC.l10n.t('Yes'), VSC.l10n.t('No')],
+        { placeHolder: VSC.l10n.t('Do you want to include and use ReAPI?') }
+    );
+    if (useReApi === undefined) return;
+
+    const includeReApi = useReApi === VSC.l10n.t('Yes');
+
+    let sourceCode = '';
+
+    switch (templateType.id) {
+        case 'basic':
+            sourceCode = `#include <amxmodx>\n#include <amxmisc>\n${includeReApi ? '#include <reapi>\n' : ''}\n#define PLUGIN "${pluginName}"\n#define VERSION "${pluginVersion}"\n#define AUTHOR "${pluginAuthor}"\n\npublic plugin_init() {\n\tregister_plugin(PLUGIN, VERSION, AUTHOR)\n\t\n\t// Add your code here...\n}\n`;
+            break;
+        case 'menu':
+            sourceCode = `#include <amxmodx>
+#include <amxmisc>
+${includeReApi ? '#include <reapi>\n' : ''}
+#define PLUGIN "${pluginName}"
+#define VERSION "${pluginVersion}"
+#define AUTHOR "${pluginAuthor}"
+
+public plugin_init() {
+\tregister_plugin(PLUGIN, VERSION, AUTHOR)
+\t
+\t// Registering the command to open the menu
+\tregister_clcmd("say /menu", "Command_OpenMenu")
+}
+
+public Command_OpenMenu(id) {
+\tif (!is_user_connected(id))
+\t\treturn PLUGIN_HANDLED
+\t\t
+\tnew iMenu = menu_create("Main Menu Title", "MenuHandler_Main")
+\t
+\t// Adding options
+\tmenu_additem(iMenu, "Option 1", "1")
+\tmenu_additem(iMenu, "Option 2", "2")
+\tmenu_additem(iMenu, "Exit", "0")
+\t
+\t// Menu properties
+\tmenu_setprop(iMenu, MPROP_EXIT, MEXIT_ALL)
+\tmenu_display(id, iMenu, 0)
+\t
+\treturn PLUGIN_HANDLED
+}
+
+public MenuHandler_Main(id, iMenu, iItem) {
+\tif (iItem == MENU_EXIT) {
+\t\tmenu_destroy(iMenu)
+\t\treturn PLUGIN_HANDLED
+\t}
+\t
+\tnew szData[6], szName[64]
+\tnew iAccess, iCallback
+\tmenu_item_getinfo(iMenu, iItem, iAccess, szData, charsmax(szData), szName, charsmax(szName), iCallback)
+\t
+\tnew iKey = str_to_num(szData)
+\t
+\tswitch (iKey) {
+\t\tcase 1: {
+\t\t\tclient_print(id, print_chat, "[Menu] You chose Option 1!")
+\t\t}
+\t\tcase 2: {
+\t\t\tclient_print(id, print_chat, "[Menu] You chose Option 2!")
+\t\t}
+\t}
+\t
+\tmenu_destroy(iMenu)
+\treturn PLUGIN_HANDLED
+}
+`;
+            break;
+        case 'cvar':
+            sourceCode = `#include <amxmodx>
+#include <amxmisc>
+${includeReApi ? '#include <reapi>\n' : ''}
+#define PLUGIN "${pluginName}"
+#define VERSION "${pluginVersion}"
+#define AUTHOR "${pluginAuthor}"
+
+// PCVAR pointers and bind variables
+new cvar_enabled
+new Float:cvar_amount
+
+public plugin_init() {
+\tregister_plugin(PLUGIN, VERSION, AUTHOR)
+\t
+\t// Cvars 
+\tbind_pcvar_num(create_cvar("amx_plugin_enabled", "1", FCVAR_NONE, "Enable/Disable plugin"), cvar_enabled)
+\tbind_pcvar_float(create_cvar("amx_plugin_amount", "100.0", FCVAR_NONE, "Amount to give"), cvar_amount)
+\t
+\tAutoExecConfig(true, "plugin_config")
+\t
+\t// Admin Command
+\tregister_concmd("amx_test_cmd", "Command_TestCmd", ADMIN_BAN, "<target> - Executes an action")
+}
+
+public Command_TestCmd(id, level, cid) {
+\tif (!cmd_access(id, level, cid, 2))
+\t\treturn PLUGIN_HANDLED
+\t\t
+\tif (!cvar_enabled) {
+\t\tconsole_print(id, "The plugin is currently disabled.")
+\t\treturn PLUGIN_HANDLED
+\t}
+\t\t
+\tnew szTarget[32]
+\tread_argv(1, szTarget, charsmax(szTarget))
+\t
+\tnew player = cmd_target(id, szTarget, CMDTARGET_OBEY_IMMUNITY | CMDTARGET_ALLOW_SELF)
+\tif (!player)
+\t\treturn PLUGIN_HANDLED
+\t\t
+\t// Execute logic using amount
+\tconsole_print(id, "Action executed on target. Amount: %f", cvar_amount)
+\t
+\treturn PLUGIN_HANDLED
+}
+`;
+            break;
+        case 'event':
+            if (includeReApi) {
+                sourceCode = `#include <amxmodx>
+#include <amxmisc>
+#include <reapi>
+
+#define PLUGIN "${pluginName}"
+#define VERSION "${pluginVersion}"
+#define AUTHOR "${pluginAuthor}"
+
+public plugin_init() {
+\tregister_plugin(PLUGIN, VERSION, AUTHOR)
+\t
+\t// Player Spawn Hook
+\tRegisterHookChain(RG_CBasePlayer_Spawn, "OnPlayerSpawn_Post", .post = true)
+\t
+\t// Player Killed Hook
+\tRegisterHookChain(RG_CBasePlayer_Killed, "OnPlayerKilled_Post", .post = true)
+\t
+\t// Round Start Hook
+\tRegisterHookChain(RG_CSGameRules_RestartRound, "OnRoundStart_Post", .post = true)
+}
+
+public OnPlayerSpawn_Post(const id) {
+\tif (!is_user_alive(id))
+\t\treturn HC_CONTINUE
+\t\t
+\t// Code...
+\treturn HC_CONTINUE
+}
+
+public OnPlayerKilled_Post(const pVictim, const pAttacker, const iGibs) {
+\t// Check if valid
+\tif (!is_user_connected(pVictim) || !is_user_connected(pAttacker))
+\t\treturn HC_CONTINUE
+\t\t
+\tif (pVictim == pAttacker)
+\t\treturn HC_CONTINUE // Suicide
+\t\t
+\t// Code...
+\treturn HC_CONTINUE
+}
+
+public OnRoundStart_Post() {
+\t// Code...
+\treturn HC_CONTINUE
+}
+`;
+            } else {
+                sourceCode = `#include <amxmodx>
+#include <amxmisc>
+#include <hamsandwich>
+
+#define PLUGIN "${pluginName}"
+#define VERSION "${pluginVersion}"
+#define AUTHOR "${pluginAuthor}"
+
+public plugin_init() {
+\tregister_plugin(PLUGIN, VERSION, AUTHOR)
+\t
+\t// Player Spawn Hook
+\tRegisterHam(Ham_Spawn, "player", "OnPlayerSpawn_Post", 1)
+\t
+\t// Player Killed Hook
+\tRegisterHam(Ham_Killed, "player", "OnPlayerKilled_Post", 1)
+\t
+\t// Round Start Hook
+\tregister_event("HLTV", "OnRoundStart", "a", "1=0", "2=0")
+}
+
+public OnPlayerSpawn_Post(id) {
+\tif (!is_user_alive(id))
+\t\treturn HAM_IGNORED
+\t\t
+\t// Code...
+\treturn HAM_IGNORED
+}
+
+public OnPlayerKilled_Post(pVictim, pAttacker, iGibs) {
+\t// Check if valid
+\tif (!is_user_connected(pVictim) || !is_user_connected(pAttacker))
+\t\treturn HAM_IGNORED
+\t\t
+\tif (pVictim == pAttacker)
+\t\treturn HAM_IGNORED // Suicide
+\t\t
+\t// Code...
+\treturn HAM_IGNORED
+}
+
+public OnRoundStart() {
+\t// Code...
+\treturn PLUGIN_CONTINUE
+}
+`;
+            }
+            break;
+    }
+
+    const doc = await VSC.workspace.openTextDocument({
+        content: sourceCode,
+        language: 'amxxpawn'
+    });
+
+    await VSC.window.showTextDocument(doc);
 }

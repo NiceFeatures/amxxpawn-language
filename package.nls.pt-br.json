@@ -12,7 +12,15 @@
         "configuration.compiler.outputType.description": "Onde os arquivos .amxx devem ser gerados. Pode ser:\n - 'source' (mesmo local de entrada)\n - 'path' (definido em amxxpawn.compiler.outputPath)",
         "configuration.compiler.outputPath.description": "Se amxxpawn.compiler.outputType estiver em 'path', use este caminho para gerar arquivos .amxx",
         "configuration.compiler.switchToOutput.description": "Alternar para a aba 'Output' ao compilar",
+        "configuration.compiler.inlineErrors.description": "Exibir erros customizados do AMXXPawn (// erro) no final da linha. Mantenha falso se usar 'Error Lens' ou ver mensagens duplicadas.",
         "command.category": "AMXXPawn",
         "command.compile.title": "Compilar plugin",
-        "command.compileLocal.title": "Compilar plugin local"
+        "command.compileLocal.title": "Compilar plugin local",
+        "command.createPlugin.title": "Criar Novo Plugin (Scaffold)",
+        "scaffold.pluginName.prompt": "Digite o nome do plugin (ex: Meu Plugin)",
+        "scaffold.pluginVersion.prompt": "Digite a versão do plugin",
+        "scaffold.pluginAuthor.prompt": "Digite o autor do plugin",
+        "scaffold.useReapi.prompt": "Deseja incluir a ReAPI?",
+        "scaffold.yes": "Sim",
+        "scaffold.no": "Não"
 }

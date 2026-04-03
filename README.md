@@ -78,7 +78,11 @@ Por padrão, a extensão **baixa e configura automaticamente o compilador AMXX (
     // (Deixe vazio para usar a pasta include do compilador padrão auto-baixado)
     "amxxpawn.compiler.includePaths": [
         "C:\\caminho\\para\\seu\\compiler\\include"
-    ]
+    ],
+
+    // Habilita ou desabilita avisos de erro inline no final da linha (falso por padrão).
+    // Deixe falso se você usa extensões como Error Lens para evitar mensagens duplicadas.
+    "amxxpawn.compiler.inlineErrors": false,
 
     // --- CONFIGURAÇÃO RECOMENDADA ---
     // Para uma experiência de autocomplete mais limpa e inteligente,

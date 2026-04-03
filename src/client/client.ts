@@ -54,6 +54,7 @@ export function activate(ctx: VSC.ExtensionContext) {
     };
     const commandCompile = VSC.commands.registerCommand('amxxpawn.compile', Commands.compile.bind(null, outputChannel, diagnosticCollection, ctx, onCompilerDownloaded));
     const commandCompileLocal = VSC.commands.registerCommand('amxxpawn.compileLocal', Commands.compileLocal.bind(null, outputChannel, diagnosticCollection));
+    const commandCreatePlugin = VSC.commands.registerCommand('amxxpawn.createPlugin', Commands.createPlugin.bind(null, ctx, onCompilerDownloaded));
 
     VSC.workspace.onDidChangeTextDocument(onDidChangeTextDocument);
     
@@ -62,6 +63,7 @@ export function activate(ctx: VSC.ExtensionContext) {
         diagnosticCollection,
         commandCompile,
         commandCompileLocal,
+        commandCreatePlugin,
         outputChannel
     );
 }

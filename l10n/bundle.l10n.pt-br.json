@@ -31,5 +31,20 @@
         "Compiler settings not found.": "Configurações do compilador não encontradas.",
         "No valid Pawn file is open.": "Nenhum arquivo Pawn válido aberto.",
         "No 'amxxpc' found in '{0}'.": "Nenhum 'amxxpc' encontrado em '{0}'.",
-        "Ambiguous result: more than one file starting with 'amxxpc' in '{0}'.": "Resultado ambíguo: mais de um arquivo começando com 'amxxpc' em '{0}'."
+        "Ambiguous result: more than one file starting with 'amxxpc' in '{0}'.": "Resultado ambíguo: mais de um arquivo começando com 'amxxpc' em '{0}'.",
+        "Enter the plugin name (e.g. My Plugin)": "Digite o nome do plugin (ex: Meu Plugin)",
+        "Enter the plugin version": "Digite a versão do plugin",
+        "Enter the plugin author": "Digite o autor do plugin",
+        "Do you want to include and use ReAPI?": "Deseja incluir a ReAPI?",
+        "Yes": "Sim",
+        "No": "Não",
+        "Select a template": "Selecione um template",
+        "Basic Plugin": "Plugin Básico",
+        "Standard empty plugin": "Plugin vazio padrão (apenas plugin_init)",
+        "Menu Plugin": "Plugin de Menu",
+        "Plugin with a functioning AMXX Menu": "Plugin pronto com comando e Menu AMXX",
+        "Cvar & Command Plugin": "Plugin com Cvars & Comandos",
+        "Plugin with registered cvars and admin commands": "Plugin registrando cvars via binds e comandos admin",
+        "Event Observer Plugin": "Plugin Observador de Eventos",
+        "Plugin with hooks for DeathMsg, RoundStart, etc.": "Plugin com hooks pre-montados (ex: DeathMsg, Round Start)"
 }

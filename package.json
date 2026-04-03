@@ -2,7 +2,7 @@
     "name": "amxx-pawn-language-editor",
     "displayName": "%extension.displayName%",
     "description": "%extension.description%",
-    "version": "1.2.5",
+    "version": "1.2.7",
     "publisher": "iceeedR",
     "license": "GPL-3.0",
     "icon": "images/extension-logo.png",
@@ -142,6 +142,11 @@
                     "type": "boolean",
                     "default": true,
                     "description": "%configuration.compiler.switchToOutput.description%"
+                },
+                "amxxpawn.compiler.inlineErrors": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "%configuration.compiler.inlineErrors.description%"
                 }
             }
         },
@@ -155,6 +160,11 @@
             {
                 "command": "amxxpawn.compileLocal",
                 "title": "%command.compileLocal.title%",
+                "category": "%command.category%"
+            },
+            {
+                "command": "amxxpawn.createPlugin",
+                "title": "%command.createPlugin.title%",
                 "category": "%command.category%"
             }
         ],
