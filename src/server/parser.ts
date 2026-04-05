@@ -13,6 +13,7 @@ interface FindFunctionIdentifierResult {
 }
 
 const callableDefinitionRegex = /^\s*(?:(forward|native|public|static|stock)\s+)?([A-Za-z_@][\w@:]+)\s*\(([^)]*)\)/;
+const callableStartRegex = /^\s*(?:(?:forward|native|public|static|stock)\s+)?[A-Za-z_@][\w@:]+\s*\(/;
 const defineRegex = /^#define\s+([A-Za-z_@][\w@]*)(?:\(([^)]*)\))?\s*(.*)/;
 const globalVarRegex = /^\s*(new|static|const|public)\s+([A-Za-z_@][\w@:]+)\s*\[?/;
 const enumRegex = /^\s*enum\s+(?:[A-Za-z_@][\w@:]*\s*)?{/;
@@ -23,6 +24,42 @@ const pawnKeywords = [
     'new', 'public', 'static', 'stock', 'const', 'forward', 'native',
     'enum', 'bool', 'break', 'continue', 'sizeof', 'defined'
 ];
+
+interface JoinedSignature {
+    joinedLine: string;
+    linesConsumed: number;
+}
+
+function joinMultiLineSignature(lines: string[], startIndex: number): JoinedSignature | null {
+    const firstLine = lines[startIndex].trim().replace(/\/\/.*/, '').trim();
+    // Count parens on first line
+    let depth = 0;
+    for (const ch of firstLine) {
+        if (ch === '(') depth++;
+        else if (ch === ')') depth--;
+    }
+    // If balanced or no open paren, no multi-line needed
+    if (depth <= 0) return null;
+
+    let joined = firstLine;
+    const maxLookahead = 30;
+    let consumed = 0;
+
+    for (let i = startIndex + 1; i < lines.length && i <= startIndex + maxLookahead; i++) {
+        const nextLine = lines[i].trim().replace(/\/\/.*/, '').trim();
+        if (!nextLine) { consumed++; continue; }
+        joined += ' ' + nextLine;
+        consumed++;
+        for (const ch of nextLine) {
+            if (ch === '(') depth++;
+            else if (ch === ')') depth--;
+        }
+        if (depth <= 0) {
+            return { joinedLine: joined, linesConsumed: consumed };
+        }
+    }
+    return null; // Never balanced — not a valid signature
+}
 
 function positionToIndex(content: string, position: VSCLS.Position): number {
     const lines = content.split('\n');
@@ -225,7 +262,18 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
             docComment = "";
             continue; // Skip bracketDepth update — enum loop already consumed all braces
         } else {
-            const callableMatch = lineContent.match(callableDefinitionRegex);
+            // Try multi-line signature join if line looks like start of a callable
+            let effectiveLineContent = lineContent;
+            let extraLinesConsumed = 0;
+            if (callableStartRegex.test(lineContent) && !callableDefinitionRegex.test(lineContent)) {
+                const joined = joinMultiLineSignature(lines, lineIndex);
+                if (joined) {
+                    effectiveLineContent = joined.joinedLine;
+                    extraLinesConsumed = joined.linesConsumed;
+                }
+            }
+
+            const callableMatch = effectiveLineContent.match(callableDefinitionRegex);
             if (callableMatch && callableMatch[2] !== 'enum') {
                 const [, specifier, fullIdentifier, params] = callableMatch;
                 const identifier = (fullIdentifier || '').split(':').pop() || '';
@@ -262,6 +310,17 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     if (newCallable.isForward && !existingCallable.isForward) {
                         results.callables[existingCallableIndex] = newCallable;
                     }
+                }
+
+                // Skip the extra lines consumed by multi-line join
+                if (extraLinesConsumed > 0) {
+                    // Recount braces from the joined lines for bracketDepth
+                    for (let skip = lineIndex + 1; skip <= lineIndex + extraLinesConsumed && skip < lines.length; skip++) {
+                        const skipLine = lines[skip].trim().replace(/\/\/.*/, '').trim();
+                        const skipNoStrings = skipLine.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
+                        bracketDepth += (skipNoStrings.match(/{/g) || []).length - (skipNoStrings.match(/}/g) || []).length;
+                    }
+                    lineIndex += extraLinesConsumed;
                 }
             } else {
                 const varMatch = lineContent.match(globalVarRegex);
