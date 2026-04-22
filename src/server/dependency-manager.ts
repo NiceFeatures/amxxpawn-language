@@ -21,7 +21,7 @@ export class FileDependencyManager {
         this._dependencies = new Map();
     }
 
-    public getDependency(uri: string) : FileDependency {
+    public getDependency(uri: string): FileDependency | undefined {
         const descriptor = this._dependencies.get(uri);
         if(descriptor === undefined)
             return undefined;
@@ -40,23 +40,24 @@ export class FileDependencyManager {
         return Array.from(this._dependencies).map((pair) => pair[1].dependency);
     }
 
-    public addReference(uri: string) {
+    public addReference(uri: string): FileDependency {
         if(!this._dependencies.has(uri)) {
-            this._dependencies.set(uri, { count: 1, dependency: new FileDependency(uri) });
-            return this._dependencies.get(uri).dependency;
+            const newDep = new FileDependency(uri);
+            this._dependencies.set(uri, { count: 1, dependency: newDep });
+            return newDep;
         } else {
-            const dependency = this._dependencies.get(uri);
+            const dependency = this._dependencies.get(uri)!;
             ++dependency.count;
             return dependency.dependency;
         }
     }
 
-    public removeReference(uri: string) {
+    public removeReference(uri: string): void {
         if(!this._dependencies.has(uri)) {
             throw new Error('Tried to remove a reference from a non-existent dependency.');
         }
 
-        const dependency = this._dependencies.get(uri);
+        const dependency = this._dependencies.get(uri)!;
         --dependency.count;
         if(dependency.count === 0) {
             this._dependencies.delete(uri);

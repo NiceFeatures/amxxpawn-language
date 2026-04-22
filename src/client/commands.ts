@@ -173,13 +173,17 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
 
     const amxxpcProcess = CP.spawn(`"${executablePath}"`, compilerArgs, spawnOptions);
 
-    amxxpcProcess.stdout.on('data', (data) => {
-        compilerStdout += data.toString();
-    });
+    if (amxxpcProcess.stdout) {
+        amxxpcProcess.stdout.on('data', (data) => {
+            compilerStdout += data.toString();
+        });
+    }
 
-    amxxpcProcess.stderr.on('data', (data) => {
-        outputChannel.append(VSC.l10n.t('stderr: {0}', data.toString()));
-    });
+    if (amxxpcProcess.stderr) {
+        amxxpcProcess.stderr.on('data', (data) => {
+            outputChannel.append(VSC.l10n.t('stderr: {0}', data.toString()));
+        });
+    }
 
     amxxpcProcess.on('error', (err) => {
         outputChannel.appendLine(VSC.l10n.t('❌ Failed to start amxxpc: {0}', err.message));

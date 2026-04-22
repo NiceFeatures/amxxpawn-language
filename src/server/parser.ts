@@ -1,5 +1,6 @@
 'use strict';
 
+import * as FS from 'fs';
 import * as VSCLS from 'vscode-languageserver';
 import * as StringHelpers from '../common/string-helpers';
 import * as Types from './types';
@@ -620,12 +621,39 @@ export function doReferences(
     // Search in current document
     findIdentifierOccurrences(content, identifier, documentUri, locations);
 
-    // Search in dependencies
+    // Search in dependencies using cached parsed data instead of reading from disk
     for (const [dep, depData] of dependenciesData.entries()) {
+        const depUri = dep.uri;
+
+        // Search in callables (function definitions)
+        for (const callable of depData.callables) {
+            if (callable.identifier === identifier) {
+                locations.push(VSCLS.Location.create(depUri, {
+                    start: callable.start,
+                    end: callable.end
+                }));
+            }
+        }
+
+        // Search in values (variables)
+        for (const value of depData.values) {
+            if (value.identifier === identifier) {
+                locations.push(VSCLS.Location.create(depUri, value.range));
+            }
+        }
+
+        // Search in constants
+        for (const constant of depData.constants) {
+            if (constant.identifier === identifier) {
+                locations.push(VSCLS.Location.create(depUri, constant.range));
+            }
+        }
+
+        // Also do a full text search in the dependency content for occurrences
+        // (for references that are not definitions, e.g., function calls)
         try {
-            const depUri = dep.uri;
             const depFsPath = URI.parse(depUri).fsPath;
-            const depContent = require('fs').readFileSync(depFsPath, 'utf8');
+            const depContent = FS.readFileSync(depFsPath, 'utf8');
             findIdentifierOccurrences(depContent, identifier, depUri, locations);
         } catch { /* ignore read errors */ }
     }

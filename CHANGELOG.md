@@ -7,6 +7,15 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.2.8] - 2026-04-05
+### Fixed
+- **Parser Multi-line Arguments**: Corrigido um bug onde funções com argumentos declarados em múltiplas linhas não eram corretamente identificadas pelo parser, afetando "Go to Definition" e syntax highlighting semântico.
+- * **Parser Multi-line Arguments**: Fixed a bug where functions with arguments declared across multiple lines were not correctly identified by the parser, affecting "Go to Definition" and semantic syntax highlighting.*
+- **TypeScript moduleResolution**: Alterado `moduleResolution` de `"node"` para `"bundler"` no `tsconfig.json`, resolvendo aviso de depreciação (a opção `node10` será removida no TypeScript 7.0).
+- * **TypeScript moduleResolution**: Changed `moduleResolution` from `"node"` to `"bundler"` in `tsconfig.json`, resolving deprecation warning (`node10` will be removed in TypeScript 7.0).*
+
+---
+
 ## [Version 1.2.7] - 2026-04-03
 ### Added
 - **Configuração de Erros Inline**: Adicionada a opção `amxxpawn.compiler.inlineErrors` (falso por padrão) para ativar os erros na linha caso você não utilize algo como a extensão Error Lens.

@@ -5,4 +5,3 @@ node_modules
 context.md
 .agent
 dist
-*.vsix

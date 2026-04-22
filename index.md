@@ -34,6 +34,15 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.2.8)
+### Fixed
+- **Parser Multi-line Arguments**: Funções com argumentos em múltiplas linhas agora são corretamente identificadas, restaurando "Go to Definition" e syntax highlighting semântico.
+- * **Parser Multi-line Arguments**: Functions with arguments across multiple lines are now correctly identified, restoring "Go to Definition" and semantic syntax highlighting.*
+- **TypeScript moduleResolution**: Corrigido `moduleResolution` no `tsconfig.json` de `"node"` para `"bundler"`, eliminando aviso de depreciação do TypeScript.
+- * **TypeScript moduleResolution**: Fixed `moduleResolution` in `tsconfig.json` from `"node"` to `"bundler"`, eliminating TypeScript deprecation warning.*
+
+---
+
 ## ✨ What's New (v1.2.7)
 ### Added
 - **Configuração de Erros Inline**: Adicionada a opção `amxxpawn.compiler.inlineErrors` para ativar mensagens de erro nativas inline.
