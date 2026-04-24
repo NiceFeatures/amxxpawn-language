@@ -72,6 +72,16 @@ export interface SemanticToken {
     tokenModifiers: number;
 }
 
+export interface LocalVariableDescriptor {
+    identifier: string;
+    file: URI;
+    range: VSCLS.Range;
+    scopeStartLine: number;
+    scopeEndLine: number;
+    isConst: boolean;
+    label: string;
+}
+
 export class ParserResults {
     public headerInclusions: InclusionDescriptor[] = [];
     public callables: CallableDescriptor[] = [];
@@ -79,6 +89,7 @@ export class ParserResults {
     public diagnostics: VSCLS.Diagnostic[] = [];
     public constants: ConstantDescriptor[] = [];
     public semanticTokens: SemanticToken[] = [];
+    public localVariables: LocalVariableDescriptor[] = [];
 }
 
 export class DocumentData {
@@ -90,6 +101,7 @@ export class DocumentData {
     public constants: ConstantDescriptor[] = [];
     public dependencies: DM.FileDependency[] = [];
     public semanticTokens: SemanticToken[] = [];
+    public localVariables: LocalVariableDescriptor[] = [];
 
     constructor(uri: string) {
         this.uri = uri;

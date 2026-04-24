@@ -34,6 +34,18 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.2.9)
+### Added
+- **Local Variable Autocomplete**: Variáveis locais e parâmetros agora aparecem no autocomplete dentro do escopo da função.
+- *Local variables and parameters now appear in autocomplete within function scope.*
+- **Preprocessor Directive Autocomplete**: Suporte para completar diretivas ao digitar `#`.
+- *Added support for completing directives when typing `#`.*
+### Fixed
+- **Semantic Coloring**: Parâmetros de funções e variáveis locais agora recebem realce de cores corretamente via Semantic Tokens.
+- *Function parameters and local variables now receive correct color highlighting via Semantic Tokens.*
+
+---
+
 ## ✨ What's New (v1.2.8)
 ### Fixed
 - **Parser Multi-line Arguments**: Funções com argumentos em múltiplas linhas agora são corretamente identificadas, restaurando "Go to Definition" e syntax highlighting semântico.

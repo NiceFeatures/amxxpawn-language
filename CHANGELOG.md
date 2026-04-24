@@ -7,6 +7,20 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.2.9] - 2026-04-24
+### Added
+- **Local Variable Autocomplete**: Variáveis locais e parâmetros agora aparecem no autocomplete quando o cursor está dentro do escopo da função.
+- *Local variables and parameters now appear in autocomplete when the cursor is within the function scope.*
+- **Preprocessor Directive Autocomplete**: Adicionado suporte para completar diretivas ao digitar `#` (ex: `#include`, `#define`, `#pragma`).
+- *Added support for completing directives when typing `#` (e.g., `#include`, `#define`, `#pragma`).*
+### Fixed
+- **Function Parameter Coloring**: Parâmetros de funções agora são corretamente coloridos no editor via Semantic Tokens.
+- *Function parameters are now correctly colored in the editor via Semantic Tokens.*
+- **Local Variable Coloring**: Variáveis declaradas dentro de funções agora recebem realce semântico de forma robusta.
+- *Variables declared inside functions now receive robust semantic highlighting.*
+
+---
+
 ## [Version 1.2.8] - 2026-04-05
 ### Fixed
 - **Parser Multi-line Arguments**: Corrigido um bug onde funções com argumentos declarados em múltiplas linhas não eram corretamente identificadas pelo parser, afetando "Go to Definition" e syntax highlighting semântico.

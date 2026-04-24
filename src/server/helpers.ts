@@ -65,6 +65,13 @@ export function getSymbols(
     return getSymbolsImpl(data, dependenciesData, new Map());
 }
 
+export function getLocalVariables(
+    data: Types.DocumentData,
+    dependenciesData: Map<DM.FileDependency, Types.DocumentData>): Types.LocalVariableDescriptor[] {
+    // Local variables are only from the current document (not dependencies)
+    return [...data.localVariables];
+}
+
 function removeDependenciesImpl(
     deps: DM.FileDependency[],
     dependencyManager: DM.FileDependencyManager,

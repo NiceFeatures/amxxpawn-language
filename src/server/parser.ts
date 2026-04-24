@@ -17,8 +17,23 @@ const callableDefinitionRegex = /^\s*(?:(forward|native|public|static|stock)\s+)
 const callableStartRegex = /^\s*(?:(?:forward|native|public|static|stock)\s+)?[A-Za-z_@][\w@:]+\s*\(/;
 const defineRegex = /^#define\s+([A-Za-z_@][\w@]*)(?:\(([^)]*)\))?\s*(.*)/;
 const globalVarRegex = /^\s*(new|static|const|public)\s+([A-Za-z_@][\w@:]+)\s*\[?/;
+const localVarRegex = /^\s*(?:new|static|const)\s+(.+)/;
 const enumRegex = /^\s*enum\s+(?:[A-Za-z_@][\w@:]*\s*)?{/;
 const taskFunctions = new Set(['set_task', 'set_task_ex', 'register_clcmd', 'register_concmd', 'register_srvcmd']);
+
+const preprocessorDirectives = [
+    'include', 'tryinclude', 'define', 'if', 'else', 'endif',
+    'pragma', 'error', 'endinput', 'undef'
+];
+
+function extractParamName(param: string): string | null {
+    if (!param) return null;
+    const noDefault = param.split('=')[0].trim();
+    const noArray = noDefault.replace(/\[.*?\]$/g, '').trim();
+    const noRef = noArray.replace(/^&/, '').trim();
+    const match = noRef.match(/([A-Za-z_@][\w@]*)$/);
+    return match ? match[1] : null;
+}
 
 const pawnKeywords = [
     'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'default', 'return',
@@ -100,6 +115,8 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
     let bracketDepth = 0;
     const lines = content.split(/\r?\n/);
     let docComment = "";
+    let currentFunctionStartLine = -1;
+    let currentFunctionLocals: { identifier: string; line: number; col: number; len: number; isConst: boolean; label: string; }[] = [];
 
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const originalLine = lines[lineIndex];
@@ -132,7 +149,57 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
         const openBraces = (noStrings.match(/{/g) || []).length;
         const closeBraces = (noStrings.match(/}/g) || []).length;
         if (bracketDepth > 0) {
+            // --- Parse local variable declarations inside function bodies ---
+            if (currentFunctionStartLine >= 0) {
+                const localMatch = lineContent.match(localVarRegex);
+                if (localMatch) {
+                    const isConst = lineContent.trimStart().startsWith('const');
+                    const isStatic = lineContent.trimStart().startsWith('static');
+                    // Remove array brackets for splitting, then parse each var
+                    const declPart = localMatch[1];
+                    const segments = declPart.replace(/\[.*?\]/g, '').split(',');
+                    for (const seg of segments) {
+                        const identMatch = seg.trim().match(/(?:[A-Za-z_@][\w@]*:)?([A-Za-z_@][\w@]*)/);
+                        if (identMatch) {
+                            const varName = identMatch[1];
+                            if (!pawnKeywords.includes(varName)) {
+                                const varCol = originalLine.indexOf(varName, originalLine.search(/\S/));
+                                if (varCol >= 0) {
+                                    currentFunctionLocals.push({
+                                        identifier: varName, line: lineIndex,
+                                        col: varCol, len: varName.length,
+                                        isConst, label: lineContent.trim()
+                                    });
+                                    let modifiers = 1; // declaration
+                                    if (isConst) modifiers |= 2; // readonly
+                                    if (isStatic) modifiers |= 4; // static
+                                    results.semanticTokens.push({
+                                        line: lineIndex, char: varCol, length: varName.length,
+                                        tokenType: 2, tokenModifiers: modifiers // variable
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             bracketDepth += openBraces - closeBraces;
+
+            // Function scope ended — finalize local variables
+            if (bracketDepth === 0 && currentFunctionStartLine >= 0) {
+                for (const local of currentFunctionLocals) {
+                    results.localVariables.push({
+                        identifier: local.identifier, file: fileUri,
+                        range: { start: { line: local.line, character: local.col }, end: { line: local.line, character: local.col + local.len } },
+                        scopeStartLine: currentFunctionStartLine,
+                        scopeEndLine: lineIndex,
+                        isConst: local.isConst, label: local.label
+                    });
+                }
+                currentFunctionLocals = [];
+                currentFunctionStartLine = -1;
+            }
             continue;
         }
 
@@ -301,6 +368,58 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     });
                 }
 
+                // --- Semantic: function parameter coloring ---
+                if (params) {
+                    const paramList = params.split(',');
+                    const sigEndLine = lineIndex + (extraLinesConsumed || 0);
+                    // Collect all signature lines
+                    const sigLines: { text: string; ln: number }[] = [];
+                    for (let sl = lineIndex; sl <= sigEndLine && sl < lines.length; sl++) {
+                        sigLines.push({ text: lines[sl], ln: sl });
+                    }
+                    let searchLineIdx = 0;
+                    let searchCol = sigLines[0].text.indexOf('(') + 1;
+                    for (const paramStr of paramList) {
+                        const paramName = extractParamName(paramStr.trim());
+                        if (!paramName) continue;
+                        for (let si = searchLineIdx; si < sigLines.length; si++) {
+                            const from = si === searchLineIdx ? searchCol : 0;
+                            const col = sigLines[si].text.indexOf(paramName, from);
+                            if (col >= 0) {
+                                const before = col > 0 ? sigLines[si].text[col - 1] : ' ';
+                                const after = col + paramName.length < sigLines[si].text.length
+                                    ? sigLines[si].text[col + paramName.length] : ' ';
+                                if (!StringHelpers.isAlphaNum(before) && !StringHelpers.isAlphaNum(after)) {
+                                    results.semanticTokens.push({
+                                        line: sigLines[si].ln, char: col, length: paramName.length,
+                                        tokenType: 4, tokenModifiers: 0 // parameter
+                                    });
+                                    searchLineIdx = si;
+                                    searchCol = col + paramName.length;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // --- Track function scope for local variables ---
+                currentFunctionStartLine = lineIndex;
+                currentFunctionLocals = [];
+                // Add params as local variables for completion
+                if (params) {
+                    for (const paramStr of params.split(',')) {
+                        const pName = extractParamName(paramStr.trim());
+                        if (pName && !pawnKeywords.includes(pName)) {
+                            currentFunctionLocals.push({
+                                identifier: pName, line: lineIndex,
+                                col: 0, len: pName.length,
+                                isConst: false, label: `(param) ${paramStr.trim()}`
+                            });
+                        }
+                    }
+                }
+
                 const existingCallableIndex = results.callables.findIndex(c => c.identifier.toLowerCase() === identifier.toLowerCase());
                 if (existingCallableIndex === -1) {
                     if (!(skipStatic && specifier === 'static')) {
@@ -449,6 +568,19 @@ export function doCompletions(
     dependenciesData: Map<DM.FileDependency, Types.DocumentData>
 ): VSCLS.CompletionItem[] | null {
 
+    // --- Feature: Preprocessor directive completion ---
+    const lines = content.split(/\r?\n/);
+    const currentLine = lines[position.line] || '';
+    const textBeforeCursor = currentLine.substring(0, position.character);
+    if (/^\s*#\w*$/.test(textBeforeCursor.trimEnd())) {
+        return preprocessorDirectives.map(d => ({
+            label: d,
+            kind: VSCLS.CompletionItemKind.Keyword,
+            detail: `#${d}`,
+            sortText: `0_${d}` // prioritize at top
+        }));
+    }
+
     const { values, callables, constants } = Helpers.getSymbols(data, dependenciesData);
     const allItems: VSCLS.CompletionItem[] = [];
 
@@ -479,6 +611,19 @@ export function doCompletions(
             documentation: c.documentation
         });
     });
+
+    // --- Feature: Local variable completion (scoped) ---
+    const localVars = Helpers.getLocalVariables(data, dependenciesData);
+    for (const lv of localVars) {
+        if (position.line >= lv.scopeStartLine && position.line <= lv.scopeEndLine) {
+            allItems.push({
+                label: lv.identifier,
+                detail: lv.label,
+                kind: lv.isConst ? VSCLS.CompletionItemKind.Constant : VSCLS.CompletionItemKind.Variable,
+                sortText: `0_${lv.identifier}` // prioritize locals
+            });
+        }
+    }
 
     return allItems;
 }

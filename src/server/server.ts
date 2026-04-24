@@ -74,7 +74,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
             definitionProvider: true,
             signatureHelpProvider: { triggerCharacters: ['(', ','] },
             documentSymbolProvider: true,
-            completionProvider: { resolveProvider: false, triggerCharacters: ['(', ',', '=', '@'] },
+            completionProvider: { resolveProvider: false, triggerCharacters: ['(', ',', '=', '@', '#'] },
             hoverProvider: true,
             referencesProvider: true,
             renameProvider: { prepareProvider: true },
@@ -455,6 +455,7 @@ function parseFile(fileUri: URI, content: string, data: Types.DocumentData, diag
     data.values = results.values;
     data.constants = results.constants;
     data.semanticTokens = results.semanticTokens;
+    data.localVariables = results.localVariables;
 }
 
 // --- Semantic Tokens Provider ---
