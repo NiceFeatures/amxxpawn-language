@@ -7,6 +7,15 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.3.1] - 2026-04-25
+### Fixed
+- **Multi-line Variable Parsing**: Corrigido o parser para identificar corretamente variáveis declaradas em múltiplas linhas (ex: `new a, \n b, \n c;`) ou quando os modificadores estão em uma linha e os identificadores em outra (ex: `public stock const \n PluginName[]`).
+- * **Multi-line Variable Parsing**: Fixed the parser to correctly identify variables declared across multiple lines (e.g., `new a, \n b, \n c;`) or when modifiers are on one line and identifiers on another (e.g., `public stock const \n PluginName[]`).*
+- **String-aware Parsing (URL Fix)**: O parser agora ignora `//` dentro de aspas, evitando que URLs (como `https://...`) quebrem o reconhecimento da declaração ou causem realces semânticos incorretos (ex: destacar `https` como um tipo).
+- * **String-aware Parsing (URL Fix)**: The parser now ignores `//` inside strings, preventing URLs (like `https://...`) from breaking declaration recognition or causing incorrect semantic highlighting (e.g., highlighting `https` as a type).*
+- **Semicolon Support**: Melhorado o reconhecimento de variáveis que terminam com `;` em declarações multi-linha.
+- * **Semicolon Support**: Improved recognition of variables ending with `;` in multi-line declarations.*
+
 ## [Version 1.3.0] - 2026-04-25
 ### Added
 - **Dynamic Include Autocomplete**: O autocomplete de `#include` agora escaneia os diretórios reais configurados no `amxxpawn.compiler.includePaths`, oferecendo sugestões precisas de arquivos `.inc`.

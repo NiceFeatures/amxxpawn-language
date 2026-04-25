@@ -34,6 +34,15 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.3.1)
+### Fixed
+- **Multi-line Variable Parsing**: Corrigido o parser para identificar corretamente variáveis declaradas em múltiplas linhas (ex: `new a, \n b, \n c;`) ou quando os modificadores estão em uma linha e os identificadores em outra (ex: `public stock const \n PluginName[]`).
+- **String-aware Parsing (URL Fix)**: O parser agora ignora `//` dentro de aspas, evitando que URLs (como `https://...`) quebrem o reconhecimento da declaração ou causem realces semânticos incorretos (ex: destacar `https` como um tipo).
+- **Semicolon Support**: Melhorado o reconhecimento de variáveis que terminam com `;` em declarações multi-linha.
+- *Fixed the parser to correctly identify variables declared across multiple lines, strings with URLs, and semicolon endings.*
+
+---
+
 ## ✨ What's New (v1.3.0)
 ### Added
 - **Dynamic Include Autocomplete**: Scans configured directories for `#include` suggestions.

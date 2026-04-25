@@ -17,8 +17,8 @@ interface FindFunctionIdentifierResult {
 const callableDefinitionRegex = /^\s*(?:(forward|native|public|static|stock)\s+)?([A-Za-z_@][\w@:]+)\s*\(([^)]*)\)/;
 const callableStartRegex = /^\s*(?:(?:forward|native|public|static|stock)\s+)?[A-Za-z_@][\w@:]+\s*\(/;
 const defineRegex = /^#define\s+([A-Za-z_@][\w@]*)(?:\(([^)]*)\))?\s*(.*)/;
-const globalVarRegex = /^\s*(new|static|const|public)\s+([A-Za-z_@][\w@:]+)\s*\[?/;
-const localVarRegex = /^\s*(?:new|static|const)\s+(.+)/;
+const globalVarRegex = /^\s*(new|static|const|public|stock)\b/;
+const localVarRegex = /^\s*(?:new|static|const|stock)\b/;
 const enumRegex = /^\s*enum\s+(?:[A-Za-z_@][\w@:]*\s*)?{/;
 const taskFunctions = new Set(['set_task', 'set_task_ex', 'register_clcmd', 'register_concmd', 'register_srvcmd']);
 
@@ -42,13 +42,36 @@ const pawnKeywords = [
     'enum', 'bool', 'break', 'continue', 'sizeof', 'defined'
 ];
 
+function stripComments(line: string, keepLength: boolean = false): string {
+    let inString = false;
+    let quote = '';
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if ((char === '"' || char === "'") && (i === 0 || line[i - 1] !== '\\')) {
+            if (!inString) {
+                inString = true;
+                quote = char;
+            } else if (char === quote) {
+                inString = false;
+            }
+        }
+        if (char === '/' && line[i + 1] === '/' && !inString) {
+            if (keepLength) {
+                return line.substring(0, i) + ' '.repeat(line.length - i);
+            }
+            return line.substring(0, i).trim();
+        }
+    }
+    return keepLength ? line : line.trim();
+}
+
 interface JoinedSignature {
     joinedLine: string;
     linesConsumed: number;
 }
 
 function joinMultiLineSignature(lines: string[], startIndex: number): JoinedSignature | null {
-    const firstLine = lines[startIndex].trim().replace(/\/\/.*/, '').trim();
+    const firstLine = stripComments(lines[startIndex]);
     // Count parens on first line
     let depth = 0;
     for (const ch of firstLine) {
@@ -63,7 +86,7 @@ function joinMultiLineSignature(lines: string[], startIndex: number): JoinedSign
     let consumed = 0;
 
     for (let i = startIndex + 1; i < lines.length && i <= startIndex + maxLookahead; i++) {
-        const nextLine = lines[i].trim().replace(/\/\/.*/, '').trim();
+        const nextLine = stripComments(lines[i]);
         if (!nextLine) { consumed++; continue; }
         joined += ' ' + nextLine;
         consumed++;
@@ -118,6 +141,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
     let docComment = "";
     let currentFunctionStartLine = -1;
     let currentFunctionLocals: { identifier: string; line: number; col: number; len: number; isConst: boolean; label: string; }[] = [];
+    let currentVarDecl: { isGlobal: boolean; isConst: boolean; isStatic: boolean; isPublic: boolean; isStock: boolean; } | null = null;
 
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const originalLine = lines[lineIndex];
@@ -137,7 +161,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
             continue;
         }
 
-        const lineContent = trimmedLine.replace(/\/\/.*/, '').trim();
+        const lineContent = stripComments(trimmedLine);
         if (!lineContent) {
             if (!trimmedLine.includes('*/')) {
                 docComment = "";
@@ -152,45 +176,81 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
         if (bracketDepth > 0) {
             // --- Parse local variable declarations inside function bodies ---
             if (currentFunctionStartLine >= 0) {
-                const localMatch = lineContent.match(localVarRegex);
-                if (localMatch) {
-                    const isConst = lineContent.trimStart().startsWith('const');
-                    const isStatic = lineContent.trimStart().startsWith('static');
-                    // Remove array brackets for splitting, then parse each var
-                    const declPart = localMatch[1];
-                    const segments = declPart.replace(/\[.*?\]/g, '').split(',');
-                    for (const seg of segments) {
-                        const identMatch = seg.trim().match(/^(?:([A-Za-z_@][\w@]*):)?([A-Za-z_@][\w@]*)/);
-                        if (identMatch) {
-                            const tagName = identMatch[1];
-                            const varName = identMatch[2];
-                            if (!pawnKeywords.includes(varName)) {
-                                if (tagName) {
-                                    const tagCol = originalLine.indexOf(tagName, originalLine.search(/\S/));
-                                    if (tagCol >= 0) {
+                const isDeclStart = localVarRegex.test(lineContent);
+                if (isDeclStart || (currentVarDecl && !currentVarDecl.isGlobal)) {
+                    if (isDeclStart) {
+                        currentVarDecl = {
+                            isGlobal: false,
+                            isConst: lineContent.includes('const'),
+                            isStatic: lineContent.includes('static'),
+                            isPublic: false,
+                            isStock: lineContent.includes('stock')
+                        };
+                    }
+
+                    let declPart = lineContent;
+                    if (isDeclStart) {
+                        declPart = lineContent.replace(/^\s*(?:new|static|const|stock)\s+/, '');
+                    }
+
+                    if (!/^\s*(?:new|static|const|stock|\s)+$/.test(lineContent)) {
+                        // Split by comma but respect strings
+                        const segments: string[] = [];
+                        let currentSeg = '';
+                        let inString = false;
+                        for (let i = 0; i < declPart.length; i++) {
+                            const char = declPart[i];
+                            if (char === '"' && (i === 0 || declPart[i - 1] !== '\\')) inString = !inString;
+                            if (char === ',' && !inString) {
+                                segments.push(currentSeg);
+                                currentSeg = '';
+                            } else {
+                                currentSeg += char;
+                            }
+                        }
+                        segments.push(currentSeg);
+
+                        let searchPos = 0;
+                        for (const seg of segments) {
+                            const trimmedSeg = seg.trim();
+                            if (!trimmedSeg) continue;
+                            const identMatch = trimmedSeg.match(/^(?:([A-Za-z_@][\w@]*):)?([A-Za-z_@][\w@]*)/);
+                            if (identMatch) {
+                                const tagName = identMatch[1];
+                                const varName = identMatch[2];
+                                if (!pawnKeywords.includes(varName)) {
+                                    if (tagName) {
+                                        const tagCol = originalLine.indexOf(tagName, searchPos);
+                                        if (tagCol >= 0) {
+                                            results.semanticTokens.push({
+                                                line: lineIndex, char: tagCol, length: tagName.length,
+                                                tokenType: 6, tokenModifiers: 0 // type
+                                            });
+                                        }
+                                    }
+                                    const varCol = originalLine.indexOf(varName, searchPos);
+                                    if (varCol >= 0) {
+                                        searchPos = varCol + varName.length;
+                                        currentFunctionLocals.push({
+                                            identifier: varName, line: lineIndex,
+                                            col: varCol, len: varName.length,
+                                            isConst: currentVarDecl!.isConst, label: trimmedSeg
+                                        });
+                                        let modifiers = 1; // declaration
+                                        if (currentVarDecl!.isConst) modifiers |= 2; // readonly
+                                        if (currentVarDecl!.isStatic) modifiers |= 4; // static
                                         results.semanticTokens.push({
-                                            line: lineIndex, char: tagCol, length: tagName.length,
-                                            tokenType: 6, tokenModifiers: 0 // type
+                                            line: lineIndex, char: varCol, length: varName.length,
+                                            tokenType: 2, tokenModifiers: modifiers // variable
                                         });
                                     }
                                 }
-                                const varCol = originalLine.indexOf(varName, originalLine.search(/\S/));
-                                if (varCol >= 0) {
-                                    currentFunctionLocals.push({
-                                        identifier: varName, line: lineIndex,
-                                        col: varCol, len: varName.length,
-                                        isConst, label: lineContent.trim()
-                                    });
-                                    let modifiers = 1; // declaration
-                                    if (isConst) modifiers |= 2; // readonly
-                                    if (isStatic) modifiers |= 4; // static
-                                    results.semanticTokens.push({
-                                        line: lineIndex, char: varCol, length: varName.length,
-                                        tokenType: 2, tokenModifiers: modifiers // variable
-                                    });
-                                }
                             }
                         }
+                    }
+
+                    if (lineContent.includes(';') || (!lineContent.endsWith(',') && !lineContent.endsWith('\\') && !/^\s*(?:new|static|const|stock|\s)+$/.test(lineContent))) {
+                        currentVarDecl = null;
                     }
                 }
             }
@@ -294,7 +354,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
             // Coleta linhas do enum até encontrar }
             if (!lineContent.includes('}')) {
                 for (let ei = lineIndex + 1; ei < lines.length; ei++) {
-                    const eline = lines[ei].trim().replace(/\/\/.*/, '').trim();
+                    const eline = stripComments(lines[ei]);
                     if (!eline) continue;
 
                     // Extrai valores do enum: suporta Tag:Identifier, Identifier[Size], Identifier = Value
@@ -447,86 +507,88 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                 if (extraLinesConsumed > 0) {
                     // Recount braces from the joined lines for bracketDepth
                     for (let skip = lineIndex + 1; skip <= lineIndex + extraLinesConsumed && skip < lines.length; skip++) {
-                        const skipLine = lines[skip].trim().replace(/\/\/.*/, '').trim();
+                        const skipLine = stripComments(lines[skip]);
                         const skipNoStrings = skipLine.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
                         bracketDepth += (skipNoStrings.match(/{/g) || []).length - (skipNoStrings.match(/}/g) || []).length;
                     }
                     lineIndex += extraLinesConsumed;
                 }
             } else {
-                const varMatch = lineContent.match(globalVarRegex);
-                if (varMatch) {
-                    const identifier = (varMatch[2] || '').split(':').pop() || '';
-                    const isConst = lineContent.includes('const');
-                    const isStatic = varMatch[1] === 'static';
-                    const tagName = varMatch[2].includes(':') ? varMatch[2].split(':')[0] : undefined;
-                    if (tagName) {
-                        const tagCol = originalLine.indexOf(tagName);
-                        if (tagCol >= 0) {
-                            results.semanticTokens.push({
-                                line: lineIndex, char: tagCol, length: tagName.length,
-                                tokenType: 6, tokenModifiers: 0 // type
-                            });
+                const isDeclStart = globalVarRegex.test(lineContent);
+                if (isDeclStart || (currentVarDecl && currentVarDecl.isGlobal)) {
+                    if (isDeclStart) {
+                        currentVarDecl = {
+                            isGlobal: true,
+                            isConst: lineContent.includes('const'),
+                            isStatic: lineContent.includes('static'),
+                            isPublic: lineContent.includes('public'),
+                            isStock: lineContent.includes('stock')
+                        };
+                    }
+
+                    let declPart = lineContent;
+                    if (isDeclStart) {
+                        declPart = lineContent.replace(/^\s*(?:new|static|const|public|stock)\s+/, '');
+                    }
+
+                    if (!/^\s*(?:new|static|const|public|stock|\s)+$/.test(lineContent)) {
+                        // Split by comma but respect strings
+                        const segments: string[] = [];
+                        let currentSeg = '';
+                        let inString = false;
+                        for (let i = 0; i < declPart.length; i++) {
+                            const char = declPart[i];
+                            if (char === '"' && (i === 0 || declPart[i - 1] !== '\\')) inString = !inString;
+                            if (char === ',' && !inString) {
+                                segments.push(currentSeg);
+                                currentSeg = '';
+                            } else {
+                                currentSeg += char;
+                            }
+                        }
+                        segments.push(currentSeg);
+
+                        let searchPos = 0;
+                        for (const seg of segments) {
+                            const trimmedSeg = seg.trim();
+                            if (!trimmedSeg) continue;
+                            const identMatch = trimmedSeg.match(/^(?:([A-Za-z_@][\w@]*):)?([A-Za-z_@][\w@]*)/);
+                            if (identMatch) {
+                                const tagName = identMatch[1];
+                                const varName = identMatch[2];
+                                if (!pawnKeywords.includes(varName) && !results.values.find(v => v.identifier === varName)) {
+                                    if (tagName) {
+                                        const tagCol = originalLine.indexOf(tagName, searchPos);
+                                        if (tagCol >= 0) {
+                                            results.semanticTokens.push({
+                                                line: lineIndex, char: tagCol, length: tagName.length,
+                                                tokenType: 6, tokenModifiers: 0 // type
+                                            });
+                                        }
+                                    }
+                                    const varCol = originalLine.indexOf(varName, searchPos);
+                                    if (varCol >= 0) {
+                                        searchPos = varCol + varName.length;
+                                        results.values.push({
+                                            label: trimmedSeg, identifier: varName, isConst: currentVarDecl!.isConst, file: fileUri,
+                                            range: { start: { line: lineIndex, character: varCol }, end: { line: lineIndex, character: varCol + varName.length } },
+                                            documentation: docComment.trim()
+                                        });
+                                        let modifiers = 1; // declaration
+                                        if (currentVarDecl!.isConst) modifiers |= 2; // readonly
+                                        if (currentVarDecl!.isStatic) modifiers |= 4; // static
+                                        results.semanticTokens.push({
+                                            line: lineIndex, char: varCol, length: varName.length,
+                                            tokenType: 2, tokenModifiers: modifiers // variable
+                                        });
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    if (identifier && !results.values.find(v => v.identifier === identifier)) {
-                        results.values.push({
-                            label: lineContent, identifier, isConst, file: fileUri,
-                            range: { start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length } },
-                            documentation: docComment.trim()
-                        });
-                        // Semantic: variable declaration
-                        const varCol = originalLine.indexOf(identifier);
-                        if (varCol >= 0) {
-                            let modifiers = 1; // declaration
-                            if (isConst) modifiers |= 2; // readonly
-                            if (isStatic) modifiers |= 4; // static
-                            results.semanticTokens.push({
-                                line: lineIndex, char: varCol, length: identifier.length,
-                                tokenType: 2, tokenModifiers: modifiers // variable
-                            });
-                        }
-                    }
-
-                    // Multi-variable: new g_iReturn, g_PugState, g_Other
-                    const restOfLine = lineContent.substring(lineContent.indexOf(identifier) + identifier.length);
-                    const commaRest = restOfLine.replace(/\[.*?\]/g, '').trim();
-                    if (commaRest.startsWith(',')) {
-                        const extraVars = commaRest.split(',').slice(1);
-                        for (const ev of extraVars) {
-                            const evClean = ev.trim().replace(/\[.*/, '').replace(/=.*/, '').trim();
-                            const evIdent = (evClean.split(':').pop() || '').trim();
-                            const evTagName = evClean.includes(':') ? evClean.split(':')[0].trim() : undefined;
-                            
-                            if (evTagName) {
-                                const tagCol = originalLine.indexOf(evTagName);
-                                if (tagCol >= 0) {
-                                    results.semanticTokens.push({
-                                        line: lineIndex, char: tagCol, length: evTagName.length,
-                                        tokenType: 6, tokenModifiers: 0 // type
-                                    });
-                                }
-                            }
-
-                            if (evIdent && /^[A-Za-z_@][\w@]*$/.test(evIdent) && !results.values.find(v => v.identifier === evIdent)) {
-                                results.values.push({
-                                    label: lineContent, identifier: evIdent, isConst, file: fileUri,
-                                    range: { start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length } },
-                                    documentation: docComment.trim()
-                                });
-                                const evCol = originalLine.indexOf(evIdent);
-                                if (evCol >= 0) {
-                                    let evMod = 1;
-                                    if (isConst) evMod |= 2;
-                                    if (isStatic) evMod |= 4;
-                                    results.semanticTokens.push({
-                                        line: lineIndex, char: evCol, length: evIdent.length,
-                                        tokenType: 2, tokenModifiers: evMod
-                                    });
-                                }
-                            }
-                        }
+                    if (lineContent.includes(';') || (!lineContent.endsWith(',') && !lineContent.endsWith('\\') && !/^\s*(?:new|static|const|public|stock|\s)+$/.test(lineContent))) {
+                        currentVarDecl = null;
                     }
                 }
             }
@@ -1004,7 +1066,7 @@ export function getUsageTokens(
             }
         }
 
-        let cleanLine = line.replace(/\/\/.*/, match => ' '.repeat(match.length));
+        let cleanLine = stripComments(line, true);
         cleanLine = cleanLine.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, match => ' '.repeat(match.length));
         cleanLine = cleanLine.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, match => ' '.repeat(match.length));
 
