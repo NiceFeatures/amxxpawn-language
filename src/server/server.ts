@@ -228,6 +228,11 @@ function doReparse(document: TextDocument) {
     );
 
     diagnostics.forEach((ds, uri) => connection.sendDiagnostics({ uri: uri, diagnostics: ds }));
+
+    // Force VS Code to refresh semantic tokens now that parsing is done
+    if (connection.languages && connection.languages.semanticTokens) {
+        connection.languages.semanticTokens.refresh();
+    }
 }
 
 connection.onDefinition((params: TextDocumentPositionParams): Definition | null => {
@@ -281,7 +286,7 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] |
     const data = documentsData.get(document.uri);
     if (!data) return null;
 
-    return Parser.doCompletions(connection, document.getText(), params.position, data, dependenciesData);
+    return Parser.doCompletions(connection, document.getText(), params.position, data, dependenciesData, syncedSettings?.compiler?.includePaths || []);
 });
 
 connection.onHover((params: TextDocumentPositionParams): Hover | null => {
@@ -468,8 +473,11 @@ connection.languages.semanticTokens.on((params) => {
 
     const builder = new SemanticTokensBuilder();
 
+    const usageTokens = Parser.getUsageTokens(document.getText(), data, dependenciesData);
+    const allTokens = [...data.semanticTokens, ...usageTokens];
+
     // Tokens devem ser ordenados por posição (linha, coluna)
-    const sortedTokens = [...data.semanticTokens].sort((a, b) => {
+    const sortedTokens = allTokens.sort((a, b) => {
         if (a.line !== b.line) return a.line - b.line;
         return a.char - b.char;
     });

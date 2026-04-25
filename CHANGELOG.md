@@ -7,6 +7,25 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.3.0] - 2026-04-25
+### Added
+- **Dynamic Include Autocomplete**: O autocomplete de `#include` agora escaneia os diretórios reais configurados no `amxxpawn.compiler.includePaths`, oferecendo sugestões precisas de arquivos `.inc`.
+- * **Dynamic Include Autocomplete**: `#include` autocomplete now scans the actual directories configured in `amxxpawn.compiler.includePaths`, providing accurate `.inc` file suggestions.*
+- **Semantic Usage Highlighting**: Variáveis, argumentos de funções, macros e constantes agora recebem realce semântico em todo o corpo do código, não apenas na declaração.
+- * **Semantic Usage Highlighting**: Variables, function arguments, macros, and constants now receive semantic highlighting throughout the code body, not just at declaration.*
+- **Tag Type Highlighting**: Implementado realce de cor para tags de tipo (ex: `Float:`, `bool:`, `Trie:`, `Array:`) em variáveis globais, locais e membros de enum.
+- * **Tag Type Highlighting**: Implemented color highlighting for type tags (e.g., `Float:`, `bool:`, `Trie:`, `Array:`) in global and local variables, and enum members.*
+
+### Fixed
+- **Real-time Semantic Refresh**: A extensão agora solicita ao VS Code que atualize as cores imediatamente após terminar a análise do código (após o delay de 300ms), eliminando a necessidade de fechar/abrir o arquivo para ver as cores atualizadas.
+- * **Real-time Semantic Refresh**: The extension now requests VS Code to refresh colors immediately after code analysis finishes (after the 300ms delay), eliminating the need to close/reopen the file to see updated colors.*
+- **Global Tag Highlighting**: Qualquer identificador seguido de dois pontos (ex: `bool:`, `Float:`) agora é corretamente identificado como um tipo em qualquer lugar do código, mesmo sem a palavra-chave `new`.
+- * **Global Tag Highlighting**: Any identifier followed by a colon (e.g., `bool:`, `Float:`) is now correctly identified as a type anywhere in the code, even without the `new` keyword.*
+- **Macro Coloring**: Macros `#define` sem parâmetros agora são corretamente identificadas como `macro` em vez de `variable`, permitindo cores distintas em temas como o Dark Modern.
+- * **Macro Coloring**: `#define` macros without parameters are now correctly identified as `macro` instead of `variable`, allowing distinct colors in themes like Dark Modern.*
+
+---
+
 ## [Version 1.2.9] - 2026-04-24
 ### Added
 - **Local Variable Autocomplete**: Variáveis locais e parâmetros agora aparecem no autocomplete quando o cursor está dentro do escopo da função.

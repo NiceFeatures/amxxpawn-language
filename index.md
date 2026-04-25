@@ -34,6 +34,17 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.3.0)
+### Added
+- **Dynamic Include Autocomplete**: Scans configured directories for `#include` suggestions.
+- **Semantic Usage Highlighting**: Colors variables and macros throughout function bodies.
+- **Tag Type Highlighting**: Realce de cor para tags como `Float:`, `bool:`, `Trie:`, etc., em qualquer lugar do código.
+### Fixed
+- **Real-time Semantic Refresh**: Cores atualizam instantaneamente enquanto você digita.
+- **Macro Coloring**: `#define` macros agora têm cores distintas de variáveis.
+
+---
+
 ## ✨ What's New (v1.2.9)
 ### Added
 - **Local Variable Autocomplete**: Variáveis locais e parâmetros agora aparecem no autocomplete dentro do escopo da função.

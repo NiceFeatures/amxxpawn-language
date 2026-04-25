@@ -7,6 +7,7 @@ import * as Types from './types';
 import * as Helpers from './helpers';
 import * as DM from './dependency-manager';
 import { URI } from 'vscode-uri';
+import * as Path from 'path';
 
 interface FindFunctionIdentifierResult {
     identifier: string;
@@ -159,10 +160,20 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     const declPart = localMatch[1];
                     const segments = declPart.replace(/\[.*?\]/g, '').split(',');
                     for (const seg of segments) {
-                        const identMatch = seg.trim().match(/(?:[A-Za-z_@][\w@]*:)?([A-Za-z_@][\w@]*)/);
+                        const identMatch = seg.trim().match(/^(?:([A-Za-z_@][\w@]*):)?([A-Za-z_@][\w@]*)/);
                         if (identMatch) {
-                            const varName = identMatch[1];
+                            const tagName = identMatch[1];
+                            const varName = identMatch[2];
                             if (!pawnKeywords.includes(varName)) {
+                                if (tagName) {
+                                    const tagCol = originalLine.indexOf(tagName, originalLine.search(/\S/));
+                                    if (tagCol >= 0) {
+                                        results.semanticTokens.push({
+                                            line: lineIndex, char: tagCol, length: tagName.length,
+                                            tokenType: 6, tokenModifiers: 0 // type
+                                        });
+                                    }
+                                }
                                 const varCol = originalLine.indexOf(varName, originalLine.search(/\S/));
                                 if (varCol >= 0) {
                                     currentFunctionLocals.push({
@@ -258,7 +269,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     if (constCol >= 0) {
                         results.semanticTokens.push({
                             line: lineIndex, char: constCol, length: identifier.length,
-                            tokenType: 2, tokenModifiers: 1 // variable, readonly
+                            tokenType: 1, tokenModifiers: 1 // macro, readonly
                         });
                     }
                 }
@@ -448,6 +459,17 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     const identifier = (varMatch[2] || '').split(':').pop() || '';
                     const isConst = lineContent.includes('const');
                     const isStatic = varMatch[1] === 'static';
+                    const tagName = varMatch[2].includes(':') ? varMatch[2].split(':')[0] : undefined;
+                    if (tagName) {
+                        const tagCol = originalLine.indexOf(tagName);
+                        if (tagCol >= 0) {
+                            results.semanticTokens.push({
+                                line: lineIndex, char: tagCol, length: tagName.length,
+                                tokenType: 6, tokenModifiers: 0 // type
+                            });
+                        }
+                    }
+
                     if (identifier && !results.values.find(v => v.identifier === identifier)) {
                         results.values.push({
                             label: lineContent, identifier, isConst, file: fileUri,
@@ -475,6 +497,18 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                         for (const ev of extraVars) {
                             const evClean = ev.trim().replace(/\[.*/, '').replace(/=.*/, '').trim();
                             const evIdent = (evClean.split(':').pop() || '').trim();
+                            const evTagName = evClean.includes(':') ? evClean.split(':')[0].trim() : undefined;
+                            
+                            if (evTagName) {
+                                const tagCol = originalLine.indexOf(evTagName);
+                                if (tagCol >= 0) {
+                                    results.semanticTokens.push({
+                                        line: lineIndex, char: tagCol, length: evTagName.length,
+                                        tokenType: 6, tokenModifiers: 0 // type
+                                    });
+                                }
+                            }
+
                             if (evIdent && /^[A-Za-z_@][\w@]*$/.test(evIdent) && !results.values.find(v => v.identifier === evIdent)) {
                                 results.values.push({
                                     label: lineContent, identifier: evIdent, isConst, file: fileUri,
@@ -565,7 +599,8 @@ export function doCompletions(
     content: string,
     position: VSCLS.Position,
     data: Types.DocumentData,
-    dependenciesData: Map<DM.FileDependency, Types.DocumentData>
+    dependenciesData: Map<DM.FileDependency, Types.DocumentData>,
+    includePaths: string[] = []
 ): VSCLS.CompletionItem[] | null {
 
     // --- Feature: Preprocessor directive completion ---
@@ -579,6 +614,70 @@ export function doCompletions(
             detail: `#${d}`,
             sortText: `0_${d}` // prioritize at top
         }));
+    }
+
+    // --- Feature: Include completion ---
+    if (/^\s*#(?:try)?include\s*[<"]/.test(textBeforeCursor)) {
+        const includeItems: VSCLS.CompletionItem[] = [];
+        const includePathMatch = textBeforeCursor.match(/#(?:try)?include\s*([<"])([^>"]*)$/);
+        
+        if (includePathMatch) {
+            const isLocal = includePathMatch[1] === '"';
+            const addedSet = new Set<string>();
+
+            const addFilesFromDir = (dir: string) => {
+                if (!FS.existsSync(dir)) return;
+                try {
+                    const files = FS.readdirSync(dir);
+                    for (const file of files) {
+                        if (file.toLowerCase().endsWith('.inc')) {
+                            const name = file.substring(0, file.length - 4);
+                            if (!addedSet.has(name)) {
+                                addedSet.add(name);
+                                includeItems.push({
+                                    label: name,
+                                    kind: VSCLS.CompletionItemKind.File,
+                                    detail: `${name}.inc`
+                                });
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Ignore directory read errors
+                }
+            };
+
+            for (const incPath of includePaths) {
+                addFilesFromDir(incPath);
+            }
+
+            if (isLocal && data.uri) {
+                try {
+                    const docFsPath = URI.parse(data.uri).fsPath;
+                    const docDir = Path.dirname(docFsPath);
+                    addFilesFromDir(docDir);
+                } catch (e) {
+                    // Ignore URI parsing errors
+                }
+            }
+
+            // Fallback for standard includes if none were found
+            if (includeItems.length === 0) {
+                const standardIncludes = [
+                    'amxmisc', 'amxmodx', 'cstrike', 'engine', 'fakemeta', 'hamsandwich',
+                    'fun', 'nvault', 'regex', 'sockets', 'sqlx', 'csx', 'xs', 'dhudmessage'
+                ];
+                for (const inc of standardIncludes) {
+                    includeItems.push({
+                        label: inc,
+                        kind: VSCLS.CompletionItemKind.File,
+                        detail: `${inc}.inc`
+                    });
+                }
+            }
+            
+            return includeItems;
+        }
     }
 
     const { values, callables, constants } = Helpers.getSymbols(data, dependenciesData);
@@ -796,41 +895,171 @@ export function doReferences(
 
         // Also do a full text search in the dependency content for occurrences
         // (for references that are not definitions, e.g., function calls)
+        // (for references that are not definitions, e.g., function calls)
         try {
             const depFsPath = URI.parse(depUri).fsPath;
-            const depContent = FS.readFileSync(depFsPath, 'utf8');
-            findIdentifierOccurrences(depContent, identifier, depUri, locations);
-        } catch { /* ignore read errors */ }
+            if (FS.existsSync(depFsPath)) {
+                const depContent = FS.readFileSync(depFsPath, 'utf8');
+                findIdentifierOccurrences(depContent, identifier, depUri, locations);
+            }
+        } catch (e) {
+            // ignore
+        }
     }
 
     return locations;
 }
 
-function findIdentifierOccurrences(content: string, identifier: string, uri: string, locations: VSCLS.Location[]): void {
-    const escapedId = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(?<![\\w@])${escapedId}(?![\\w@])`, 'g');
+function findIdentifierOccurrences(content: string, identifier: string, uri: string, locations: VSCLS.Location[]) {
     const lines = content.split(/\r?\n/);
+    const escapedId = identifier.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+    const regex = new RegExp(`\\\\b${escapedId}\\\\b`, 'g');
+    
+    let inBlockComment = false;
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        
+        if (inBlockComment) {
+            const endIdx = line.indexOf('*/');
+            if (endIdx >= 0) {
+                inBlockComment = false;
+                line = ' '.repeat(endIdx + 2) + line.substring(endIdx + 2);
+            } else {
+                continue;
+            }
+        }
+        
+        while (line.includes('/*')) {
+            const startIdx = line.indexOf('/*');
+            const endIdx = line.indexOf('*/', startIdx + 2);
+            if (endIdx >= 0) {
+                line = line.substring(0, startIdx) + ' '.repeat(endIdx + 2 - startIdx) + line.substring(endIdx + 2);
+            } else {
+                inBlockComment = true;
+                line = line.substring(0, startIdx) + ' '.repeat(line.length - startIdx);
+                break;
+            }
+        }
 
-    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-        const line = lines[lineIndex];
+        let cleanLine = line.replace(/\/\/.*/, match => ' '.repeat(match.length));
+        cleanLine = cleanLine.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, match => ' '.repeat(match.length));
+        cleanLine = cleanLine.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, match => ' '.repeat(match.length));
 
-        // Skip comments
-        const trimmed = line.trim();
-        if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) continue;
-
-        // Remove string literals before searching
-        const noStrings = line.replace(/"[^"]*"/g, '""').replace(/'[^']*'/g, "''");
-
-        let match: RegExpExecArray | null;
-        const lineRegex = new RegExp(`(?<![\\w@])${escapedId}(?![\\w@])`, 'g');
-        while ((match = lineRegex.exec(noStrings)) !== null) {
+        let match;
+        while ((match = regex.exec(cleanLine)) !== null) {
             locations.push(VSCLS.Location.create(uri, {
-                start: { line: lineIndex, character: match.index },
-                end: { line: lineIndex, character: match.index + identifier.length }
+                start: { line: i, character: match.index },
+                end: { line: i, character: match.index + identifier.length }
             }));
         }
     }
 }
+
+export function getUsageTokens(
+    content: string, 
+    data: Types.DocumentData, 
+    dependenciesData: Map<DM.FileDependency, Types.DocumentData>
+): Types.SemanticToken[] {
+    const tokens: Types.SemanticToken[] = [];
+    const symbols = Helpers.getSymbols(data, dependenciesData);
+    
+    const symbolMap = new Map<string, { type: number, modifier: number }>();
+    
+    for (const c of symbols.callables) symbolMap.set(c.identifier, { type: 0, modifier: 0 });
+    for (const v of symbols.values) symbolMap.set(v.identifier, { type: 2, modifier: v.isConst ? 2 : 0 });
+    for (const c of symbols.constants) {
+        if (c.label.startsWith('#define')) {
+            symbolMap.set(c.identifier, { type: 1, modifier: 1 }); // macro, readonly
+        } else if (c.label.startsWith('enum')) {
+            symbolMap.set(c.identifier, { type: 3, modifier: 1 }); // enumMember, readonly
+        } else {
+            symbolMap.set(c.identifier, { type: 2, modifier: 1 }); // variable, readonly
+        }
+    }
+
+    const lines = content.split('\n');
+    let inBlockComment = false;
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        let line = lines[lineIndex];
+        
+        if (inBlockComment) {
+            const endIdx = line.indexOf('*/');
+            if (endIdx >= 0) {
+                inBlockComment = false;
+                line = ' '.repeat(endIdx + 2) + line.substring(endIdx + 2);
+            } else {
+                continue;
+            }
+        }
+        
+        while (line.includes('/*')) {
+            const startIdx = line.indexOf('/*');
+            const endIdx = line.indexOf('*/', startIdx + 2);
+            if (endIdx >= 0) {
+                line = line.substring(0, startIdx) + ' '.repeat(endIdx + 2 - startIdx) + line.substring(endIdx + 2);
+            } else {
+                inBlockComment = true;
+                line = line.substring(0, startIdx) + ' '.repeat(line.length - startIdx);
+                break;
+            }
+        }
+
+        let cleanLine = line.replace(/\/\/.*/, match => ' '.repeat(match.length));
+        cleanLine = cleanLine.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, match => ' '.repeat(match.length));
+        cleanLine = cleanLine.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, match => ' '.repeat(match.length));
+
+        // --- Feature: Highlight tags (Identifier:) as types ---
+        const tagRegex = /([A-Za-z_@][\w@]*):/g;
+        let tagMatch;
+        while ((tagMatch = tagRegex.exec(cleanLine)) !== null) {
+            const tagName = tagMatch[1];
+            const char = tagMatch.index;
+            
+            const existing = data.semanticTokens.find(t => t.line === lineIndex && t.char === char);
+            if (existing) continue;
+
+            tokens.push({
+                line: lineIndex, char, length: tagName.length,
+                tokenType: 6, tokenModifiers: 0 // type
+            });
+        }
+
+        const regex = /\b[A-Za-z_@][\w@]*\b/g;
+        let match;
+        while ((match = regex.exec(cleanLine)) !== null) {
+            const ident = match[0];
+            const char = match.index;
+            
+            // Skip keywords (handled by TextMate), but we ALREADY handled tags above
+            if (pawnKeywords.includes(ident)) continue;
+            
+            const existing = data.semanticTokens.find(t => t.line === lineIndex && t.char === char) ||
+                             tokens.find(t => t.line === lineIndex && t.char === char);
+            if (existing) continue;
+
+            const localVars = data.localVariables.filter(lv => lv.scopeStartLine <= lineIndex && lv.scopeEndLine >= lineIndex);
+            const localVar = localVars.find(lv => lv.identifier === ident);
+            if (localVar) {
+                const isParam = localVar.label.startsWith('(param)');
+                tokens.push({
+                    line: lineIndex, char, length: ident.length,
+                    tokenType: isParam ? 4 : 2, tokenModifiers: localVar.isConst ? 2 : 0
+                });
+                continue;
+            }
+
+            const sym = symbolMap.get(ident);
+            if (sym) {
+                tokens.push({
+                    line: lineIndex, char, length: ident.length,
+                    tokenType: sym.type, tokenModifiers: sym.modifier
+                });
+            }
+        }
+    }
+    return tokens;
+}
+
 
 export function doPrepareRename(
     content: string, position: VSCLS.Position
