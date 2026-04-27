@@ -7,4 +7,3 @@ context.md
 dist
 test_*
 test_arr.ts
-*.vsix
