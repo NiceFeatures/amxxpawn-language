@@ -7,7 +7,23 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.4.0] - 2026-04-27
+### Added
+- **Local Variable Hover & Definition**: Agora o "Go to Definition" (Ctrl+Click) e o Hover funcionam para variáveis locais e parâmetros dentro do corpo das funções.
+- * **Local Variable Hover & Definition**: Support for "Go to Definition" (Ctrl+Click) and Hover tooltips for local variables and parameters inside function bodies.*
+
+### Fixed
+- **Block Comment Parsing**: Corrigido um bug crítico onde chaves `{}` dentro de comentários em bloco `/* */` quebravam o rastreamento de escopo do parser, impedindo a detecção de variáveis locais em funções subsequentes.
+- * **Block Comment Parsing**: Fixed a critical bug where braces `{}` inside block comments `/* */` would break the parser's scope tracking, causing functions below them to lose local variable detection.*
+- **Robust Comment Stripping**: O parser agora remove corretamente comentários em bloco de linha única (ex: `/* comment */ new x;`) e lida melhor com caracteres escapados em strings ao contar chaves.
+- * **Robust Comment Stripping**: The parser now correctly strips single-line block comments (e.g., `/* comment */ new x;`) and handles escaped characters in strings better when counting braces.*
+- **Go to Definition URI Parity**: Corrigido um bug onde o "Go to Definition" poderia falhar ou retornar nulo se símbolos em arquivos diferentes estivessem na mesma linha.
+- * **Go to Definition URI Parity**: Fixed a bug where "Go to Definition" could fail or return null if symbols in different files shared the same line number.*
+- **Highlighting Priority (new const)**: Resolvido o conflito onde variáveis `new const` eram incorretamente classificadas como membros de enum no realce semântico.
+- * **Highlighting Priority (new const)**: Resolved a conflict where `new const` variables were incorrectly classified as enum members in semantic highlighting.*
+
 ## [Version 1.3.2] - 2026-04-27
+
 ### Fixed
 - **Single-character Identifiers**: O parser agora identifica corretamente funções e variáveis com apenas uma letra (ex: `new n;`, `public p(){}`).
 - * **Single-character Identifiers**: Fixed the parser to correctly identify functions and variables with only one letter (e.g., `new n;`, `public p(){}`).*

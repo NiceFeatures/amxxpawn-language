@@ -43,26 +43,55 @@ const pawnKeywords = [
 ];
 
 function stripComments(line: string, keepLength: boolean = false): string {
+    let result = '';
     let inString = false;
     let quote = '';
+    let inBlock = false;
+
     for (let i = 0; i < line.length; i++) {
         const char = line[i];
-        if ((char === '"' || char === "'") && (i === 0 || line[i - 1] !== '\\')) {
-            if (!inString) {
-                inString = true;
-                quote = char;
-            } else if (char === quote) {
+        const nextChar = line[i + 1];
+
+        if (inBlock) {
+            if (char === '*' && nextChar === '/') {
+                inBlock = false;
+                i++; // skip /
+                if (keepLength) result += '  ';
+            } else {
+                if (keepLength) result += ' ';
+            }
+            continue;
+        }
+
+        if (inString) {
+            result += char;
+            if (char === quote && (i === 0 || line[i - 1] !== '\\')) {
                 inString = false;
             }
+            continue;
         }
-        if (char === '/' && line[i + 1] === '/' && !inString) {
-            if (keepLength) {
-                return line.substring(0, i) + ' '.repeat(line.length - i);
-            }
-            return line.substring(0, i).trim();
+
+        if (char === '/' && nextChar === '/') {
+            if (keepLength) result += ' '.repeat(line.length - i);
+            break;
         }
+
+        if (char === '/' && nextChar === '*') {
+            inBlock = true;
+            i++; // skip *
+            if (keepLength) result += '  ';
+            continue;
+        }
+
+        if ((char === '"' || char === "'") && (i === 0 || line[i - 1] !== '\\')) {
+            inString = true;
+            quote = char;
+        }
+
+        result += char;
     }
-    return keepLength ? line : line.trim();
+
+    return keepLength ? result : result.trim();
 }
 
 interface JoinedSignature {
@@ -143,6 +172,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
     let currentFunctionLocals: { identifier: string; line: number; col: number; len: number; isConst: boolean; label: string; }[] = [];
     let currentVarDecl: { isGlobal: boolean; isConst: boolean; isStatic: boolean; isPublic: boolean; isStock: boolean; } | null = null;
     let inBlockComment = false;
+    let lineContentForBraces = "";
 
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const originalLine = lines[lineIndex];
@@ -152,25 +182,25 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
         if (inBlockComment) {
             if (trimmedLine.includes('*/')) {
                 inBlockComment = false;
-                // Process the part after */ if any
                 const endIdx = originalLine.indexOf('*/');
-                const afterComment = originalLine.substring(endIdx + 2).trim();
-                if (!afterComment) continue;
-                // If there's content after */, let it fall through for normal processing
-                // by replacing the line variables
+                // The part after */ should be processed
+                const afterComment = originalLine.substring(endIdx + 2);
+                lineContentForBraces = stripComments(afterComment, true);
             } else {
                 continue; // Entire line is inside block comment
             }
-        }
-
-        // Check if this line starts a block comment (not a doc comment)
-        if (trimmedLine.startsWith('/*') && !trimmedLine.startsWith('/**')) {
+        } else if (trimmedLine.startsWith('/*') && !trimmedLine.startsWith('/**')) {
             if (!trimmedLine.includes('*/')) {
                 inBlockComment = true;
                 continue;
             }
-            // Single-line block comment like /* ... */, stripComments will handle it
+            // Single-line block comment: stripComments below will handle it
+            lineContentForBraces = stripComments(originalLine, true);
+        } else {
+            lineContentForBraces = stripComments(originalLine, true);
         }
+
+        const lineContent = lineContentForBraces;
 
         if (trimmedLine.startsWith('/**') && !trimmedLine.startsWith('/***')) {
             docComment = '';
@@ -186,7 +216,6 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
             continue;
         }
 
-        const lineContent = stripComments(trimmedLine);
         if (!lineContent) {
             if (!trimmedLine.includes('*/')) {
                 docComment = "";
@@ -194,8 +223,8 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
             continue;
         }
 
-        // Remove strings para não contar braces dentro delas
-        const noStrings = lineContent.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
+        // Remove strings to avoid counting braces inside them (handles escaped quotes)
+        const noStrings = lineContent.replace(/"(?:[^"\\]|\\.)*"/g, '').replace(/'(?:[^'\\]|\\.)*'/g, '');
         const openBraces = (noStrings.match(/{/g) || []).length;
         const closeBraces = (noStrings.match(/}/g) || []).length;
         if (bracketDepth > 0) {
@@ -263,10 +292,16 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                                     const varCol = originalLine.indexOf(varName, searchPos);
                                     if (varCol >= 0) {
                                         searchPos = varCol + varName.length;
+                                        const prefix: string[] = [];
+                                        if (currentVarDecl!.isStatic) prefix.push('static');
+                                        if (prefix.length === 0) prefix.push('new');
+                                        if (currentVarDecl!.isConst) prefix.push('const');
+                                        
+                                        const varCleanLabel = prefix.join(' ') + ' ' + trimmedSeg.split('=')[0].trim();
                                         currentFunctionLocals.push({
                                             identifier: varName, line: lineIndex,
                                             col: varCol, len: varName.length,
-                                            isConst: currentVarDecl!.isConst, label: trimmedSeg
+                                            isConst: currentVarDecl!.isConst, label: varCleanLabel
                                         });
                                         let modifiers = 1; // declaration
                                         if (currentVarDecl!.isConst) modifiers |= 2; // readonly
@@ -615,8 +650,16 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                                     const varCol = originalLine.indexOf(varName, searchPos);
                                     if (varCol >= 0) {
                                         searchPos = varCol + varName.length;
+                                        const prefix: string[] = [];
+                                        if (currentVarDecl!.isStock) prefix.push('stock');
+                                        if (currentVarDecl!.isStatic) prefix.push('static');
+                                        if (currentVarDecl!.isPublic) prefix.push('public');
+                                        if (prefix.length === 0) prefix.push('new');
+                                        if (currentVarDecl!.isConst) prefix.push('const');
+
+                                        const varCleanLabel = prefix.join(' ') + ' ' + trimmedSeg.split('=')[0].trim();
                                         results.values.push({
-                                            label: trimmedSeg, identifier: varName, isConst: currentVarDecl!.isConst, file: fileUri,
+                                            label: varCleanLabel, identifier: varName, isConst: currentVarDecl!.isConst, file: fileUri,
                                             range: { start: { line: lineIndex, character: varCol }, end: { line: lineIndex, character: varCol + varName.length } },
                                             documentation: docComment.trim()
                                         });
@@ -650,6 +693,20 @@ export function doDefinition(
     content: string, position: VSCLS.Position, data: Types.DocumentData,
     dependenciesData: Map<DM.FileDependency, Types.DocumentData>): VSCLS.Location | null {
 
+    const cursorIndex = positionToIndex(content, position);
+    const result = findIdentifierAtCursor(content, cursorIndex);
+    if (!result.identifier) return null;
+
+    const identifierLower = result.identifier.toLowerCase();
+
+    // Check local variables first (they shadow globals)
+    const localVars = data.localVariables;
+    const localVar = localVars.find(lv => lv.identifier === result.identifier && position.line >= lv.scopeStartLine && position.line <= lv.scopeEndLine);
+    if (localVar) {
+        if (position.line === localVar.range.start.line) return null;
+        return VSCLS.Location.create(localVar.file.toString(), localVar.range);
+    }
+
     const symbols = Helpers.getSymbols(data, dependenciesData);
     const line = content.split('\n')[position.line];
 
@@ -667,32 +724,31 @@ export function doDefinition(
         }
     }
 
-    const cursorIndex = positionToIndex(content, position);
-    const result = findIdentifierAtCursor(content, cursorIndex);
-    if (!result.identifier) return null;
-
-    const identifierLower = result.identifier.toLowerCase();
-
-    const constant = symbols.constants.find(c => c.identifier.toLowerCase() === identifierLower);
-    if (constant) {
-        if (position.line === constant.range.start.line) return null;
-        return VSCLS.Location.create(constant.file.toString(), constant.range);
-    }
-
     const potentialIdentifiers = [result.identifier];
     if (result.identifier.startsWith('@')) potentialIdentifiers.push(result.identifier.substring(1));
     else potentialIdentifiers.push('@' + result.identifier);
 
+    // 1. Check variables (values) first - high priority
+    const value = symbols.values.find(val => potentialIdentifiers.some(id => id.toLowerCase() === val.identifier.toLowerCase()));
+    if (value) {
+        if (data.uri === value.file.toString() && position.line === value.range.start.line) return null;
+        return VSCLS.Location.create(value.file.toString(), value.range);
+    }
+
+    // 2. Check callables
     const callable = symbols.callables.find(clb => potentialIdentifiers.some(id => id.toLowerCase() === clb.identifier.toLowerCase()));
     if (callable) {
+        if (data.uri === callable.file.toString() && position.line === callable.start.line) return null;
         return VSCLS.Location.create(callable.file.toString(), VSCLS.Range.create(callable.start, callable.end));
     }
 
-    const value = symbols.values.find(val => potentialIdentifiers.some(id => id.toLowerCase() === val.identifier.toLowerCase()));
-    if (value) {
-        if (position.line === value.range.start.line) return null;
-        return VSCLS.Location.create(value.file.toString(), value.range);
+    // 3. Check constants last
+    const constant = symbols.constants.find(c => c.identifier.toLowerCase() === identifierLower);
+    if (constant) {
+        if (data.uri === constant.file.toString() && position.line === constant.range.start.line) return null;
+        return VSCLS.Location.create(constant.file.toString(), constant.range);
     }
+
     return null;
 }
 
@@ -879,24 +935,38 @@ export function doHover(
     const cursorIndex = positionToIndex(content, position);
     const result = findIdentifierAtCursor(content, cursorIndex);
     if (!result.identifier) return null;
-    const symbols = Helpers.getSymbols(data, dependenciesData);
 
-    const constant = symbols.constants.find(c => c.identifier === result.identifier);
-    if (constant) return { contents: [{ language: 'amxxpawn', value: constant.label }] };
+    // Check local variables first (they shadow globals)
+    const localVars = data.localVariables;
+    const localVar = localVars.find(lv => lv.identifier === result.identifier && position.line >= lv.scopeStartLine && position.line <= lv.scopeEndLine);
+    if (localVar) {
+        return { contents: [{ language: 'amxxpawn', value: localVar.label }] };
+    }
+
+    const symbols = Helpers.getSymbols(data, dependenciesData);
 
     const idsToSearch = [result.identifier];
     if (result.identifier.startsWith('@')) idsToSearch.push(result.identifier.substring(1));
     else idsToSearch.push('@' + result.identifier);
 
+    // 1. Check variables (values) - high priority
+    const value = symbols.values.find(v => idsToSearch.some(id => id.toLowerCase() === v.identifier.toLowerCase()));
+    if (value) {
+        // Skip hover if on the declaration line in the same file
+        if (data.uri === value.file.toString() && position.line === value.range.start.line) return null;
+        return { contents: [{ language: 'amxxpawn', value: value.label }, { language: 'pawndoc', value: value.documentation }] };
+    }
+
+    // 2. Check callables
     const callable = symbols.callables.find(c => idsToSearch.some(id => id.toLowerCase() === c.identifier.toLowerCase()));
     if (callable) {
         return { contents: [{ language: 'amxxpawn', value: callable.label }, { language: 'pawndoc', value: callable.documentation }] };
     }
 
-    const value = symbols.values.find(v => idsToSearch.some(id => id.toLowerCase() === v.identifier.toLowerCase()));
-    if (value && position.line !== value.range.start.line) {
-        return { contents: [{ language: 'amxxpawn', value: value.label }, { language: 'pawndoc', value: value.documentation }] };
-    }
+    // 3. Check constants
+    const constant = symbols.constants.find(c => c.identifier.toLowerCase() === result.identifier.toLowerCase());
+    if (constant) return { contents: [{ language: 'amxxpawn', value: constant.label }] };
+
     return null;
 }
 

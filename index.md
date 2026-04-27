@@ -34,6 +34,20 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.4.0)
+### Added
+- **Local Variable Hover & Definition**: Agora o "Go to Definition" (Ctrl+Click) e o Hover funcionam para variáveis locais e parâmetros dentro do corpo das funções.
+- *Support for "Go to Definition" and Hover tooltips for local variables and parameters inside function bodies.*
+
+### Fixed
+- **Block Comment Parsing**: Corrigido um bug crítico onde chaves `{}` dentro de comentários em bloco `/* */` quebravam o rastreamento de escopo do parser.
+- **Robust Comment Stripping**: O parser agora remove corretamente comentários em bloco de linha única e lida melhor com caracteres escapados.
+- **Go to Definition URI Parity**: Corrigido o bug onde o "Go to Definition" poderia falhar em arquivos diferentes na mesma linha.
+- **Highlighting Priority (new const)**: Resolvido o conflito de classificação de variáveis `new const` no realce semântico.
+- *Fixed block comment brace tracking, improved comment stripping, and resolved symbol resolution line-collisions.*
+
+---
+
 ## ✨ What's New (v1.3.2)
 ### Fixed
 - **Single-character Identifiers**: O parser agora identifica corretamente funções e variáveis com apenas uma letra (ex: `new n;`, `public p(){}`).
@@ -41,6 +55,7 @@ It transforms VS Code into a powerful IDE for Pawn, bringing features that were 
 - *Fixed the parser to correctly identify single-character names and variables with compound modifiers like `new const`.*
 
 ---
+
 
 ## ✨ What's New (v1.3.1)
 ### Fixed
