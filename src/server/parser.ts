@@ -142,10 +142,35 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
     let currentFunctionStartLine = -1;
     let currentFunctionLocals: { identifier: string; line: number; col: number; len: number; isConst: boolean; label: string; }[] = [];
     let currentVarDecl: { isGlobal: boolean; isConst: boolean; isStatic: boolean; isPublic: boolean; isStock: boolean; } | null = null;
+    let inBlockComment = false;
 
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const originalLine = lines[lineIndex];
         const trimmedLine = originalLine.trim();
+
+        // Handle multi-line block comments /* ... */
+        if (inBlockComment) {
+            if (trimmedLine.includes('*/')) {
+                inBlockComment = false;
+                // Process the part after */ if any
+                const endIdx = originalLine.indexOf('*/');
+                const afterComment = originalLine.substring(endIdx + 2).trim();
+                if (!afterComment) continue;
+                // If there's content after */, let it fall through for normal processing
+                // by replacing the line variables
+            } else {
+                continue; // Entire line is inside block comment
+            }
+        }
+
+        // Check if this line starts a block comment (not a doc comment)
+        if (trimmedLine.startsWith('/*') && !trimmedLine.startsWith('/**')) {
+            if (!trimmedLine.includes('*/')) {
+                inBlockComment = true;
+                continue;
+            }
+            // Single-line block comment like /* ... */, stripComments will handle it
+        }
 
         if (trimmedLine.startsWith('/**') && !trimmedLine.startsWith('/***')) {
             docComment = '';
@@ -1048,9 +1073,16 @@ export function getUsageTokens(
     
     const symbolMap = new Map<string, { type: number, modifier: number }>();
     
+    // Build a set of value identifiers for priority resolution:
+    // 'new const' variables go into values (type 2), NOT constants (type 3)
+    const valueIdentifiers = new Set<string>();
+    for (const v of symbols.values) valueIdentifiers.add(v.identifier);
+
     for (const c of symbols.callables) symbolMap.set(c.identifier, { type: 0, modifier: 0 });
-    for (const v of symbols.values) symbolMap.set(v.identifier, { type: 2, modifier: v.isConst ? 2 : 0 });
     for (const c of symbols.constants) {
+        // Skip constants that also exist as values — values take priority
+        // This prevents 'new const' variables from being classified as enumMember
+        if (valueIdentifiers.has(c.identifier)) continue;
         if (c.label.startsWith('#define')) {
             symbolMap.set(c.identifier, { type: 1, modifier: 1 }); // macro, readonly
         } else if (c.label.startsWith('enum')) {
@@ -1059,6 +1091,8 @@ export function getUsageTokens(
             symbolMap.set(c.identifier, { type: 2, modifier: 1 }); // variable, readonly
         }
     }
+    // Values MUST be set last to ensure they always win over constants
+    for (const v of symbols.values) symbolMap.set(v.identifier, { type: 2, modifier: v.isConst ? 2 : 0 });
 
     const lines = content.split('\n');
     let inBlockComment = false;
@@ -1189,10 +1223,24 @@ export function doRename(
     const escapedId = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const lines = content.split(/\r?\n/);
 
+    let inBlockComment = false;
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const line = lines[lineIndex];
         const trimmed = line.trim();
-        if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) continue;
+
+        if (inBlockComment) {
+            if (trimmed.includes('*/')) {
+                inBlockComment = false;
+            }
+            continue;
+        }
+        if (trimmed.startsWith('//')) continue;
+        if (trimmed.startsWith('/*')) {
+            if (!trimmed.includes('*/')) {
+                inBlockComment = true;
+            }
+            continue;
+        }
 
         const noStrings = line.replace(/"[^"]*"/g, '""').replace(/'[^']*'/g, "''");
 
