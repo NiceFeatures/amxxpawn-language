@@ -34,6 +34,14 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.3.2)
+### Fixed
+- **Single-character Identifiers**: O parser agora identifica corretamente funções e variáveis com apenas uma letra (ex: `new n;`, `public p(){}`).
+- **Compound Variable Modifiers**: Corrigido o erro onde variáveis com múltiplos modificadores (ex: `new const TEST_ARR`) não eram corretamente reconhecidas.
+- *Fixed the parser to correctly identify single-character names and variables with compound modifiers like `new const`.*
+
+---
+
 ## ✨ What's New (v1.3.1)
 ### Fixed
 - **Multi-line Variable Parsing**: Corrigido o parser para identificar corretamente variáveis declaradas em múltiplas linhas (ex: `new a, \n b, \n c;`) ou quando os modificadores estão em uma linha e os identificadores em outra (ex: `public stock const \n PluginName[]`).

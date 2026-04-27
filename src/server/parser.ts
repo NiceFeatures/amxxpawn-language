@@ -14,8 +14,8 @@ interface FindFunctionIdentifierResult {
     parameterIndex?: number;
 }
 
-const callableDefinitionRegex = /^\s*(?:(forward|native|public|static|stock)\s+)?([A-Za-z_@][\w@:]+)\s*\(([^)]*)\)/;
-const callableStartRegex = /^\s*(?:(?:forward|native|public|static|stock)\s+)?[A-Za-z_@][\w@:]+\s*\(/;
+const callableDefinitionRegex = /^\s*(?:(forward|native|public|static|stock)\s+)?([A-Za-z_@][\w@:]*)\s*\(([^)]*)\)/;
+const callableStartRegex = /^\s*(?:(?:forward|native|public|static|stock)\s+)?[A-Za-z_@][\w@:]*\s*\(/;
 const defineRegex = /^#define\s+([A-Za-z_@][\w@]*)(?:\(([^)]*)\))?\s*(.*)/;
 const globalVarRegex = /^\s*(new|static|const|public|stock)\b/;
 const localVarRegex = /^\s*(?:new|static|const|stock)\b/;
@@ -190,7 +190,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
 
                     let declPart = lineContent;
                     if (isDeclStart) {
-                        declPart = lineContent.replace(/^\s*(?:new|static|const|stock)\s+/, '');
+                        declPart = lineContent.replace(/^\s*(?:(?:new|static|const|stock)\s+)+/, '');
                     }
 
                     if (!/^\s*(?:new|static|const|stock|\s)+$/.test(lineContent)) {
@@ -210,7 +210,14 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                         }
                         segments.push(currentSeg);
 
-                        let searchPos = 0;
+                        let searchPos = originalLine.indexOf(lineContent);
+                        if (isDeclStart) {
+                            const modMatch = lineContent.match(/^\s*(?:(?:new|static|const|stock)\s+)+/);
+                            if (modMatch) {
+                                searchPos += modMatch[0].length;
+                            }
+                        }
+
                         for (const seg of segments) {
                             const trimmedSeg = seg.trim();
                             if (!trimmedSeg) continue;
@@ -304,15 +311,16 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
             if (match) {
                 const [, identifier, params, value] = match;
                 if (params !== undefined) {
+                    const searchPos = originalLine.indexOf('#define') + 7;
                     results.callables.push({
                         label: lineContent, identifier, file: fileUri,
-                        start: { line: lineIndex, character: originalLine.indexOf(identifier) },
-                        end: { line: lineIndex, character: originalLine.indexOf(identifier) + identifier.length },
+                        start: { line: lineIndex, character: originalLine.indexOf(identifier, searchPos) },
+                        end: { line: lineIndex, character: originalLine.indexOf(identifier, searchPos) + identifier.length },
                         parameters: params ? params.split(',').map(p => ({ label: p.trim() })) : [],
                         documentation: `Macro: ${lineContent}`, isForward: false
                     });
                     // Semantic: macro declaration
-                    const macroCol = originalLine.indexOf(identifier);
+                    const macroCol = originalLine.indexOf(identifier, searchPos);
                     if (macroCol >= 0) {
                         results.semanticTokens.push({
                             line: lineIndex, char: macroCol, length: identifier.length,
@@ -320,12 +328,13 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                         });
                     }
                 } else {
+                    const searchPos = originalLine.indexOf('#define') + 7;
                     results.constants.push({
                         identifier, value: value.trim(), label: `#define ${identifier} ${value.trim()}`, file: fileUri,
                         range: { start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length } }
                     });
                     // Semantic: constant (readonly)
-                    const constCol = originalLine.indexOf(identifier);
+                    const constCol = originalLine.indexOf(identifier, searchPos);
                     if (constCol >= 0) {
                         results.semanticTokens.push({
                             line: lineIndex, char: constCol, length: identifier.length,
@@ -418,18 +427,23 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                 const identifier = (fullIdentifier || '').split(':').pop() || '';
                 if (!identifier) continue;
 
+                let searchPos = originalLine.indexOf(lineContent);
+                if (specifier) {
+                    searchPos = originalLine.indexOf(specifier, searchPos) + specifier.length;
+                }
+                const fnCol = originalLine.indexOf(identifier, searchPos);
+
                 const newCallable: Types.CallableDescriptor = {
                     label: callableMatch[0].trim(),
                     identifier, file: fileUri,
-                    start: { line: lineIndex, character: originalLine.indexOf(identifier) },
-                    end: { line: lineIndex, character: originalLine.indexOf(identifier) + identifier.length },
+                    start: { line: lineIndex, character: fnCol },
+                    end: { line: lineIndex, character: fnCol + identifier.length },
                     parameters: params ? params.split(',').map(p => ({ label: p.trim() })) : [],
                     documentation: docComment.trim(),
                     isForward: specifier === 'forward' || specifier === 'native'
                 };
 
                 // Semantic: function declaration
-                const fnCol = originalLine.indexOf(identifier);
                 if (fnCol >= 0) {
                     let modifiers = 1; // declaration
                     if (specifier === 'static') modifiers |= 4; // static
@@ -528,7 +542,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
 
                     let declPart = lineContent;
                     if (isDeclStart) {
-                        declPart = lineContent.replace(/^\s*(?:new|static|const|public|stock)\s+/, '');
+                        declPart = lineContent.replace(/^\s*(?:(?:new|static|const|public|stock)\s+)+/, '');
                     }
 
                     if (!/^\s*(?:new|static|const|public|stock|\s)+$/.test(lineContent)) {
@@ -548,7 +562,14 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                         }
                         segments.push(currentSeg);
 
-                        let searchPos = 0;
+                        let searchPos = originalLine.indexOf(lineContent);
+                        if (isDeclStart) {
+                            const modMatch = lineContent.match(/^\s*(?:(?:new|static|const|public|stock)\s+)+/);
+                            if (modMatch) {
+                                searchPos += modMatch[0].length;
+                            }
+                        }
+
                         for (const seg of segments) {
                             const trimmedSeg = seg.trim();
                             if (!trimmedSeg) continue;

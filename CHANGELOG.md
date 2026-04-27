@@ -7,6 +7,13 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.3.2] - 2026-04-27
+### Fixed
+- **Single-character Identifiers**: O parser agora identifica corretamente funções e variáveis com apenas uma letra (ex: `new n;`, `public p(){}`).
+- * **Single-character Identifiers**: Fixed the parser to correctly identify functions and variables with only one letter (e.g., `new n;`, `public p(){}`).*
+- **Compound Variable Modifiers**: Corrigido o erro onde variáveis com múltiplos modificadores (ex: `new const TEST_ARR`) não eram corretamente reconhecidas devido ao stripping parcial de palavras-chave.
+- * **Compound Variable Modifiers**: Fixed an error where variables with multiple modifiers (e.g., `new const TEST_ARR`) were not correctly recognized due to partial keyword stripping.*
+
 ## [Version 1.3.1] - 2026-04-25
 ### Fixed
 - **Multi-line Variable Parsing**: Corrigido o parser para identificar corretamente variáveis declaradas em múltiplas linhas (ex: `new a, \n b, \n c;`) ou quando os modificadores estão em uma linha e os identificadores em outra (ex: `public stock const \n PluginName[]`).
