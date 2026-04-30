@@ -9,7 +9,7 @@ import * as VSC from 'vscode';
 import * as Settings from '../common/settings-types';
 import * as Helpers from '../common/helpers';
 
-const COMPILER_ZIP_URL = 'https://github.com/NiceFeatures/amxxpawn-language/raw/master/compiler.zip';
+const COMPILER_ZIP_URL = 'https://github.com/alliedmodders/amxmodx/releases/download/1.9.0.5303/amxmodx-1.9.0-git5303-base-windows.zip';
 
 function downloadFile(url: string, destPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -43,8 +43,8 @@ function downloadFile(url: string, destPath: string): Promise<void> {
 function extractZip(zipPath: string, destDir: string): Promise<void> {
     return new Promise((resolve, reject) => {
         const cmd = process.platform === 'win32'
-            ? `powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force"`
-            : `unzip -o "${zipPath}" -d "${destDir}"`;
+            ? `powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force; Copy-Item -Path '${destDir}\\addons\\amxmodx\\scripting\\*' -Destination '${destDir}' -Recurse -Force; Remove-Item -Path '${destDir}\\addons', '${destDir}\\testsuite' ,'${destDir}\\*.sma' -Recurse -Force"`
+            : `unzip -o "${zipPath}" "addons/amxmodx/scripting/*" -d "${destDir}" && rm -rf "${destDir}/"*.sma "${destDir}/testsuite"`;
         CP.exec(cmd, (error) => {
             if (error) reject(error);
             else resolve();
@@ -290,7 +290,7 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
             });
             const resourceUri = VSC.Uri.file(filePath);
             diagnosticCollection.set(resourceUri, resourceDiagnostics);
-            
+
             VSC.window.visibleTextEditors.forEach(e => {
                 if (e.document.uri.fsPath === resourceUri.fsPath) {
                     e.setDecorations(inlineErrorDecorationType, decorationOptions);
