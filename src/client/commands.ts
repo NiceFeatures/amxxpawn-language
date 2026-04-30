@@ -9,7 +9,9 @@ import * as VSC from 'vscode';
 import * as Settings from '../common/settings-types';
 import * as Helpers from '../common/helpers';
 
-const COMPILER_ZIP_URL = 'https://github.com/alliedmodders/amxmodx/releases/download/1.9.0.5303/amxmodx-1.9.0-git5303-base-windows.zip';
+const osName = process.platform === 'win32' ? 'windows' : 'linux';
+const osExt = process.platform === 'win32' ? 'zip' : 'tar.gz'; // AMXModX typical Linux builds use .tar.gz
+const COMPILER_ZIP_URL = `https://github.com/alliedmodders/amxmodx/releases/download/1.9.0.5303/amxmodx-1.9.0-git5303-base-${osName}.${osExt}`;
 
 function downloadFile(url: string, destPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -44,7 +46,7 @@ function extractZip(zipPath: string, destDir: string): Promise<void> {
     return new Promise((resolve, reject) => {
         const cmd = process.platform === 'win32'
             ? `powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force; Copy-Item -Path '${destDir}\\addons\\amxmodx\\scripting\\*' -Destination '${destDir}' -Recurse -Force; Remove-Item -Path '${destDir}\\addons', '${destDir}\\testsuite' ,'${destDir}\\*.sma' -Recurse -Force"`
-            : `unzip -o "${zipPath}" "addons/amxmodx/scripting/*" -d "${destDir}" && rm -rf "${destDir}/"*.sma "${destDir}/testsuite"`;
+            : `tar -xzf "${zipPath}" --strip-components=3 -C "${destDir}" addons/amxmodx/scripting && rm -rf "${destDir}/"*.sma "${destDir}/testsuite"`;
         CP.exec(cmd, (error) => {
             if (error) reject(error);
             else resolve();
