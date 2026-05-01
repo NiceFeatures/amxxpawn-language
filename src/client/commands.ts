@@ -46,7 +46,7 @@ function extractZip(zipPath: string, destDir: string): Promise<void> {
     return new Promise((resolve, reject) => {
         const cmd = process.platform === 'win32'
             ? `powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force; Copy-Item -Path '${destDir}\\addons\\amxmodx\\scripting\\*' -Destination '${destDir}' -Recurse -Force; Remove-Item -Path '${destDir}\\addons', '${destDir}\\testsuite' ,'${destDir}\\*.sma' -Recurse -Force"`
-            : `tar -xzf "${zipPath}" --strip-components=3 -C "${destDir}" addons/amxmodx/scripting && rm -rf "${destDir}/"*.sma "${destDir}/testsuite"`;
+            : `tar -xzf "${zipPath}" --strip-components=3 -C "${destDir}" addons/amxmodx/scripting && rm -rf "${destDir}/*.sma" "${destDir}/testsuite"`;
         CP.exec(cmd, (error) => {
             if (error) reject(error);
             else resolve();
