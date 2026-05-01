@@ -11,7 +11,9 @@ import * as Helpers from '../common/helpers';
 
 const osName = process.platform === 'win32' ? 'windows' : 'linux';
 const osExt = process.platform === 'win32' ? 'zip' : 'tar.gz'; // AMXModX typical Linux builds use .tar.gz
-const COMPILER_ZIP_URL = `https://github.com/alliedmodders/amxmodx/releases/download/1.9.0.5303/amxmodx-1.9.0-git5303-base-${osName}.${osExt}`;
+const COMPILER_VERSION = '1.9.0';
+const COMPILER_BUILD = '5303';
+const COMPILER_ZIP_URL = `https://github.com/alliedmodders/amxmodx/releases/download/${COMPILER_VERSION}.${COMPILER_BUILD}/amxmodx-${COMPILER_VERSION}-git${COMPILER_BUILD}-base-${osName}.${osExt}`;
 
 function downloadFile(url: string, destPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
