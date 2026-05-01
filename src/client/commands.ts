@@ -3,6 +3,7 @@
 import * as FS from 'fs';
 import * as Path from 'path';
 import * as CP from 'child_process';
+import * as crypto from 'crypto';
 import * as https from 'https';
 import * as http from 'http';
 import * as VSC from 'vscode';
@@ -14,6 +15,9 @@ const osExt = process.platform === 'win32' ? 'zip' : 'tar.gz'; // AMXModX typica
 const COMPILER_VERSION = '1.9.0';
 const COMPILER_BUILD = '5303';
 const COMPILER_ZIP_URL = `https://github.com/alliedmodders/amxmodx/releases/download/${COMPILER_VERSION}.${COMPILER_BUILD}/amxmodx-${COMPILER_VERSION}-git${COMPILER_BUILD}-base-${osName}.${osExt}`;
+
+const WINDOWS_COMPILER_SHA256_HASH = "dd5c0f64b3974ce60e9a35d5bec957e8e2db95ae6fa12e45f24563373f550364";
+const LINUX_COMPILER_SHA256_HASH = "1ed6898ced2c1fcf225c288b94effc19917e987b284e42911587738ee3c93699";
 
 function downloadFile(url: string, destPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -96,6 +100,12 @@ async function ensureCompiler(context: VSC.ExtensionContext, onDownloaded?: () =
             progress.report({ message: VSC.l10n.t('Downloading from GitHub...') });
             await downloadFile(COMPILER_ZIP_URL, zipPath);
 
+            progress.report({ message: VSC.l10n.t('Verifying file integrity...') });
+            const isIntegrityValid = await verifyFileIntegrity(zipPath, process.platform === 'win32' ? WINDOWS_COMPILER_SHA256_HASH : LINUX_COMPILER_SHA256_HASH);
+            if (!isIntegrityValid) {
+                throw new Error('File integrity check failed');
+            }
+
             progress.report({ message: VSC.l10n.t('Extracting compiler...') });
             await extractZip(zipPath, compilerDir);
 
@@ -116,6 +126,28 @@ async function ensureCompiler(context: VSC.ExtensionContext, onDownloaded?: () =
             VSC.window.showErrorMessage(VSC.l10n.t('❌ Failed to download compiler: {0}', message));
             return null;
         }
+    });
+}
+
+/**
+ * Verifies the integrity of a file by comparing its hash.
+ * 
+ * @param filePath The local path to the file.
+ * @param expectedHash The known correct hash.
+ * @param algorithm The hashing algorithm to use (e.g., 'sha256', 'md5').
+ */
+function verifyFileIntegrity(filePath: string, expectedHash: string, algorithm: string = 'sha256'): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash(algorithm);
+        const stream = FS.createReadStream(filePath);
+
+        stream.on('error', (err) => reject(err));
+        stream.on('data', (chunk) => hash.update(chunk));
+        stream.on('end', () => {
+            const calculatedHash = hash.digest('hex');
+            // Check if the calculated hash matches the expected one securely
+            resolve(calculatedHash.toLowerCase() === expectedHash.toLowerCase());
+        });
     });
 }
 
