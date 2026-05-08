@@ -34,6 +34,15 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.5.0)
+### Added
+- **Linux Support**: Adicionado suporte para sistemas Linux.
+- *Added support for Linux systems.*
+- **Official Compiler Download URL**: Alterada a URL de download automático do compilador para a URL oficial de releases do AmxModX no GitHub.
+- *Switch to official AmxModX github release URL for auto compiler download.*
+
+---
+
 ## ✨ What's New (v1.4.0)
 ### Added
 - **Local Variable Hover & Definition**: Agora o "Go to Definition" (Ctrl+Click) e o Hover funcionam para variáveis locais e parâmetros dentro do corpo das funções.

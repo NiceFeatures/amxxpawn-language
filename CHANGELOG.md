@@ -7,6 +7,13 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.5.0] - 2026-05-08
+### Added
+- **Linux Support**: Adicionado suporte para sistemas Linux.
+- * **Linux Support**: Added support for Linux systems.*
+- **Official Compiler Download URL**: Alterada a URL de download automático do compilador para a URL oficial de releases do AmxModX no GitHub.
+- * **Official Compiler Download URL**: Switch to official AmxModX github release URL for auto compiler download.*
+
 ## [Version 1.4.0] - 2026-04-27
 ### Added
 - **Local Variable Hover & Definition**: Agora o "Go to Definition" (Ctrl+Click) e o Hover funcionam para variáveis locais e parâmetros dentro do corpo das funções.
