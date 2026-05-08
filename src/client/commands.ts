@@ -50,9 +50,13 @@ function downloadFile(url: string, destPath: string): Promise<void> {
 
 function extractZip(zipPath: string, destDir: string): Promise<void> {
     return new Promise((resolve, reject) => {
+        // Escape single quotes for PowerShell (replace ' with '')
+        const psDestDir = destDir.replace(/'/g, "''");
+        const psZipPath = zipPath.replace(/'/g, "''");
         const cmd = process.platform === 'win32'
-            ? `powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force; Copy-Item -Path '${destDir}\\addons\\amxmodx\\scripting\\*' -Destination '${destDir}' -Recurse -Force; Remove-Item -Path '${destDir}\\addons', '${destDir}\\testsuite' ,'${destDir}\\*.sma' -Recurse -Force"`
-            : `tar -xzf "${zipPath}" --strip-components=3 -C "${destDir}" addons/amxmodx/scripting && rm -rf "${destDir}/*.sma" "${destDir}/testsuite"`;
+            ? `powershell -NoProfile -Command "Expand-Archive -Path '${psZipPath}' -DestinationPath '${psDestDir}' -Force; Copy-Item -Path '${psDestDir}\\addons\\amxmodx\\scripting\\*' -Destination '${psDestDir}' -Recurse -Force; Remove-Item -Path '${psDestDir}\\addons', '${psDestDir}\\testsuite', '${psDestDir}\\*.sma' -Recurse -Force"`
+            : `tar -xzf "${zipPath}" --strip-components=3 -C "${destDir}" addons/amxmodx/scripting && rm -rf "${destDir}"/*.sma "${destDir}/testsuite"`;
+
         CP.exec(cmd, (error) => {
             if (error) reject(error);
             else resolve();
