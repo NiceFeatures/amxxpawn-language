@@ -7,6 +7,17 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.5.1] - 2026-05-24
+### Fixed
+- **Includes Inside Preprocessor Blocks**: Corrigido um bug onde diretivas `#include` indentadas dentro de blocos condicionais não eram reconhecidas, causando perda de auto-complete e highlights nas sub-includes.
+- * **Includes Inside Preprocessor Blocks**: Fixed a bug where indented `#include` directives inside conditional blocks were not recognized, causing sub-includes to lose auto-complete and highlighting.*
+- **Find All References Duplicate Results**: Corrigido o bug onde `Shift+F12` exibia definições em duplicidade e operava como "Go to Definition". Agora exibe apenas as referências de forma deduplicada e consistente.
+- * **Find All References Duplicate Results**: Fixed a bug where `Shift+F12` displayed definitions multiple times and behaved like "Go to Definition". It now only displays occurrences deduplicated consistently.*
+- **Find All References com Símbolos Especiais (@)**: O `Shift+F12` agora reconhece corretamente funções que iniciam com o caractere arroba (ex: `@PlacarHostName`).
+- * **Find All References with Special Symbols (@)**: Fixed a bug where "Find All References" would fail to find occurrences for functions starting with the at sign (@).*
+- **Find All References dentro de Strings (Callbacks)**: Corrigido um bug na busca de referências onde chamadas de funções e callbacks escritas em forma de string (ex: `set_task(4.0, "@ClearResults")`) eram ignoradas e não listadas no "Find All References". O VS Code agora também busca identificadores isolados dentro das strings, como é tradicional no desenvolvimento Pawn.
+- * **Find All References inside Strings (Callbacks)**: Fixed a bug in reference search where function calls and callbacks written as strings (e.g., `set_task(4.0, "@ClearResults")`) were ignored and not listed in "Find All References". VS Code now searches for isolated identifiers inside strings as well, as is traditional in Pawn development.*
+
 ## [Version 1.5.0] - 2026-05-08
 ### Added
 - **Linux Support**: Adicionado suporte para sistemas Linux.

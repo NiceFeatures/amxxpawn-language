@@ -201,6 +201,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
         }
 
         const lineContent = lineContentForBraces;
+        const trimmedContent = lineContent.trim();
 
         if (trimmedLine.startsWith('/**') && !trimmedLine.startsWith('/***')) {
             docComment = '';
@@ -216,7 +217,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
             continue;
         }
 
-        if (!lineContent) {
+        if (!trimmedContent) {
             if (!trimmedLine.includes('*/')) {
                 docComment = "";
             }
@@ -341,16 +342,16 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
             continue;
         }
 
-        if (lineContent.startsWith('#include') || lineContent.startsWith('#tryinclude')) {
+        if (trimmedContent.startsWith('#include') || trimmedContent.startsWith('#tryinclude')) {
             const match = lineContent.match(/#\s*(?:try)?include\s*(?:<|")\s*(.+?)\s*(?:>|")/);
             if (match?.[1]) {
                 results.headerInclusions.push({
-                    filename: match[1], isLocal: lineContent.includes('"'), isSilent: lineContent.startsWith('#tryinclude'),
+                    filename: match[1], isLocal: lineContent.includes('"'), isSilent: trimmedContent.startsWith('#tryinclude'),
                     start: { line: lineIndex, character: 0 }, end: { line: lineIndex, character: originalLine.length }
                 });
 
                 // Semantic: #include keyword
-                const keyword = lineContent.startsWith('#tryinclude') ? '#tryinclude' : '#include';
+                const keyword = trimmedContent.startsWith('#tryinclude') ? '#tryinclude' : '#include';
                 const kwCol = originalLine.indexOf(keyword.charAt(0));
                 results.semanticTokens.push({
                     line: lineIndex, char: kwCol, length: keyword.length,
@@ -366,7 +367,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     });
                 }
             }
-        } else if (lineContent.startsWith('#define')) {
+        } else if (trimmedContent.startsWith('#define')) {
             const match = lineContent.match(defineRegex);
             if (match) {
                 const [, identifier, params, value] = match;
@@ -403,7 +404,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     }
                 }
             }
-        } else if (lineContent.startsWith('enum')) {
+        } else if (trimmedContent.startsWith('enum')) {
             // Semantic: enum keyword
             results.semanticTokens.push({
                 line: lineIndex, char: originalLine.indexOf('enum'), length: 4,
@@ -1040,58 +1041,68 @@ export function doReferences(
     const locations: VSCLS.Location[] = [];
     const identifier = result.identifier;
 
-    // Search in current document
-    findIdentifierOccurrences(content, identifier, documentUri, locations);
+    // Determine if the identifier is a callable (function/callback)
+    let isCallable = result.isCallable;
+    if (!isCallable) {
+        if (identifier.startsWith('@') || identifier.startsWith('public ')) {
+            isCallable = true;
+        } else {
+            for (const callable of data.callables) {
+                if (callable.identifier === identifier) {
+                    isCallable = true;
+                    break;
+                }
+            }
+            if (!isCallable) {
+                for (const depData of dependenciesData.values()) {
+                    for (const callable of depData.callables) {
+                        if (callable.identifier === identifier) {
+                            isCallable = true;
+                            break;
+                        }
+                    }
+                    if (isCallable) break;
+                }
+            }
+        }
+    }
 
-    // Search in dependencies using cached parsed data instead of reading from disk
-    for (const [dep, depData] of dependenciesData.entries()) {
+    // Search all occurrences in the current document
+    findIdentifierOccurrences(content, identifier, documentUri, locations, isCallable);
+
+    // Search all occurrences in dependency files (includes)
+    for (const [dep] of dependenciesData.entries()) {
         const depUri = dep.uri;
-
-        // Search in callables (function definitions)
-        for (const callable of depData.callables) {
-            if (callable.identifier === identifier) {
-                locations.push(VSCLS.Location.create(depUri, {
-                    start: callable.start,
-                    end: callable.end
-                }));
-            }
-        }
-
-        // Search in values (variables)
-        for (const value of depData.values) {
-            if (value.identifier === identifier) {
-                locations.push(VSCLS.Location.create(depUri, value.range));
-            }
-        }
-
-        // Search in constants
-        for (const constant of depData.constants) {
-            if (constant.identifier === identifier) {
-                locations.push(VSCLS.Location.create(depUri, constant.range));
-            }
-        }
-
-        // Also do a full text search in the dependency content for occurrences
-        // (for references that are not definitions, e.g., function calls)
-        // (for references that are not definitions, e.g., function calls)
         try {
             const depFsPath = URI.parse(depUri).fsPath;
             if (FS.existsSync(depFsPath)) {
                 const depContent = FS.readFileSync(depFsPath, 'utf8');
-                findIdentifierOccurrences(depContent, identifier, depUri, locations);
+                findIdentifierOccurrences(depContent, identifier, depUri, locations, isCallable);
             }
         } catch (e) {
-            // ignore
+            // ignore read errors
         }
     }
 
-    return locations;
+    // Deduplicate locations by URI + start position
+    const seen = new Set<string>();
+    const unique: VSCLS.Location[] = [];
+    for (const loc of locations) {
+        const key = `${loc.uri}:${loc.range.start.line}:${loc.range.start.character}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(loc);
+        }
+    }
+
+    return unique;
 }
 
-function findIdentifierOccurrences(content: string, identifier: string, uri: string, locations: VSCLS.Location[]) {
+
+function findIdentifierOccurrences(content: string, identifier: string, uri: string, locations: VSCLS.Location[], searchInStrings: boolean = false) {
     const lines = content.split(/\r?\n/);
     const escapedId = identifier.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
-    const regex = new RegExp(`\\\\b${escapedId}\\\\b`, 'g');
+    const regex = new RegExp(`(?<![a-zA-Z0-9_@])${escapedId}(?![a-zA-Z0-9_@])`, 'g');
     
     let inBlockComment = false;
     for (let i = 0; i < lines.length; i++) {
@@ -1120,8 +1131,13 @@ function findIdentifierOccurrences(content: string, identifier: string, uri: str
         }
 
         let cleanLine = line.replace(/\/\/.*/, match => ' '.repeat(match.length));
-        cleanLine = cleanLine.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, match => ' '.repeat(match.length));
-        cleanLine = cleanLine.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, match => ' '.repeat(match.length));
+        
+        // Only strip strings if we are NOT searching for a callable/callback.
+        // Pawn heavily uses string-based callbacks (e.g. set_task(1.0, "@MyTask")).
+        if (!searchInStrings) {
+            cleanLine = cleanLine.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, match => ' '.repeat(match.length));
+            cleanLine = cleanLine.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, match => ' '.repeat(match.length));
+        }
 
         let match;
         while ((match = regex.exec(cleanLine)) !== null) {

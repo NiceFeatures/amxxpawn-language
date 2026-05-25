@@ -34,6 +34,15 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.5.1)
+### Fixed
+- **Includes Inside Preprocessor Blocks**: Diretivas `#include` indentadas agora são corretamente reconhecidas.
+- **Find All References**: Corrigido o bug onde `Shift+F12` exibia definições em duplicidade.
+- **Find All References dentro de Strings (Callbacks)**: Chamadas de funções e callbacks escritas em forma de string (ex: `set_task(4.0, "@ClearResults")`) agora são perfeitamente reconhecidas e listadas no "Find All References", respeitando o comportamento típico do Pawn. Também foi adicionado o suporte adequado para funções prefixadas com `@`.
+- *Fixed parsing of indented `#include` directives, corrected "Find All References" duplicate definition results, and added proper search capability for isolated identifiers (like callbacks) inside strings and special prefixed symbols (@).*
+
+---
+
 ## ✨ What's New (v1.5.0)
 ### Added
 - **Linux Support**: Adicionado suporte para sistemas Linux.
