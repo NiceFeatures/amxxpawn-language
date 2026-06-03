@@ -139,8 +139,8 @@ function positionToIndex(content: string, position: VSCLS.Position): number {
     return index + position.character;
 }
 
-function findIdentifierAtCursor(content: string, cursorIndex: number): { identifier: string; isCallable: boolean } {
-    const result = { identifier: '', isCallable: false };
+function findIdentifierAtCursor(content: string, cursorIndex: number): { identifier: string; isCallable: boolean; isTag: boolean } {
+    const result = { identifier: '', isCallable: false, isTag: false };
     // Handle cursor past end or on non-alphanumeric (e.g. \r at line end)
     if (cursorIndex >= content.length) return result;
     let idx = cursorIndex;
@@ -158,6 +158,9 @@ function findIdentifierAtCursor(content: string, cursorIndex: number): { identif
     while (end < content.length - 1 && StringHelpers.isAlphaNum(content[end + 1])) end++;
     result.identifier = content.substring(start, end + 1);
     let checkParen = end + 1;
+    if (checkParen < content.length && content[checkParen] === ':') {
+        result.isTag = true;
+    }
     while (checkParen < content.length && StringHelpers.isWhitespace(content[checkParen])) checkParen++;
     if (checkParen < content.length && content[checkParen] === '(') result.isCallable = true;
     return result;
@@ -186,18 +189,32 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                 // The part after */ should be processed
                 const afterComment = originalLine.substring(endIdx + 2);
                 lineContentForBraces = stripComments(afterComment, true);
+                const commentPart = originalLine.substring(0, endIdx).replace(/^\s*\*/, '').trim();
+                if (commentPart) docComment += commentPart + '\n';
             } else {
+                const commentPart = originalLine.replace(/^\s*\*/, '').trim();
+                if (commentPart) docComment += commentPart + '\n';
                 continue; // Entire line is inside block comment
             }
         } else if (trimmedLine.startsWith('/*') && !trimmedLine.startsWith('/**')) {
             if (!trimmedLine.includes('*/')) {
                 inBlockComment = true;
+                const commentPart = trimmedLine.substring(2).replace(/^\s*\*/, '').trim();
+                if (commentPart) docComment += commentPart + '\n';
                 continue;
             }
             // Single-line block comment: stripComments below will handle it
             lineContentForBraces = stripComments(originalLine, true);
+            const startIdx = originalLine.indexOf('/*');
+            const endIdx = originalLine.indexOf('*/');
+            const commentPart = originalLine.substring(startIdx + 2, endIdx).trim();
+            if (commentPart) docComment += commentPart + '\n';
         } else {
             lineContentForBraces = stripComments(originalLine, true);
+            if (trimmedLine.startsWith('//')) {
+                const commentPart = trimmedLine.substring(2).trim();
+                if (commentPart) docComment += commentPart + '\n';
+            }
         }
 
         const lineContent = lineContentForBraces;
@@ -218,7 +235,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
         }
 
         if (!trimmedContent) {
-            if (!trimmedLine.includes('*/')) {
+            if (!trimmedLine.includes('*/') && !trimmedLine.startsWith('//') && !trimmedLine.startsWith('/*')) {
                 docComment = "";
             }
             continue;
@@ -950,8 +967,16 @@ export function doHover(
     if (result.identifier.startsWith('@')) idsToSearch.push(result.identifier.substring(1));
     else idsToSearch.push('@' + result.identifier);
 
+    // Check if it's a tag (e.g. Float:)
+    if (result.isTag) {
+        return { contents: [{ language: 'amxxpawn', value: `(tag) ${result.identifier}:` }] };
+    }
+
     // 1. Check variables (values) - high priority
-    const value = symbols.values.find(v => idsToSearch.some(id => id.toLowerCase() === v.identifier.toLowerCase()));
+    let value = symbols.values.find(v => idsToSearch.some(id => id === v.identifier));
+    if (!value) {
+        value = symbols.values.find(v => idsToSearch.some(id => id.toLowerCase() === v.identifier.toLowerCase()));
+    }
     if (value) {
         // Skip hover if on the declaration line in the same file
         if (data.uri === value.file.toString() && position.line === value.range.start.line) return null;
@@ -959,13 +984,19 @@ export function doHover(
     }
 
     // 2. Check callables
-    const callable = symbols.callables.find(c => idsToSearch.some(id => id.toLowerCase() === c.identifier.toLowerCase()));
+    let callable = symbols.callables.find(c => idsToSearch.some(id => id === c.identifier));
+    if (!callable) {
+        callable = symbols.callables.find(c => idsToSearch.some(id => id.toLowerCase() === c.identifier.toLowerCase()));
+    }
     if (callable) {
         return { contents: [{ language: 'amxxpawn', value: callable.label }, { language: 'pawndoc', value: callable.documentation }] };
     }
 
     // 3. Check constants
-    const constant = symbols.constants.find(c => c.identifier.toLowerCase() === result.identifier.toLowerCase());
+    let constant = symbols.constants.find(c => idsToSearch.some(id => id === c.identifier));
+    if (!constant) {
+        constant = symbols.constants.find(c => idsToSearch.some(id => id.toLowerCase() === c.identifier.toLowerCase()));
+    }
     if (constant) return { contents: [{ language: 'amxxpawn', value: constant.label }] };
 
     return null;
