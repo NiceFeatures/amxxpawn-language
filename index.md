@@ -34,6 +34,13 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.5.3)
+### Fixed
+- **Nested Signature Help inside Macros**: Corrigido o bug em que o Signature Help exibia a definição de macros `#define` de forma desnecessária ao invés de manter o foco na função externa que envelopa a expressão (comportamento similar ao clangd).
+- *Fixed Signature Help "hijacking" by `#define` macro calls inside function arguments, allowing the tooltip to fall through and keep showing the outer enclosing function signature help (similar to clangd).*
+
+---
+
 ## ✨ What's New (v1.5.1)
 ### Fixed
 - **Includes Inside Preprocessor Blocks**: Diretivas `#include` indentadas agora são corretamente reconhecidas.

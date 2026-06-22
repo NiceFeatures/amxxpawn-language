@@ -13,6 +13,8 @@ interface FindFunctionIdentifierResult {
     identifier: string;
     parameterIndex?: number;
     currentParamText?: string;
+    isMacro?: boolean;
+    openParenPos?: number;
 }
 
 const callableDefinitionRegex = /^\s*(?:(forward|native|public|static|stock)\s+)?([A-Za-z_@][\w@:]*)\s*\(([^)]*)\)/;
@@ -912,8 +914,8 @@ export function doCompletions(
     return allItems;
 }
 
-function findFunctionIdentifier(content: string, cursorIndex: number): FindFunctionIdentifierResult {
-    let searchIndex = cursorIndex - 1;
+function findFunctionIdentifier(content: string, cursorIndex: number, startSearchFrom?: number): FindFunctionIdentifierResult {
+    let searchIndex = (startSearchFrom ?? cursorIndex) - 1;
     let parenDepth = 0;
 
     while (searchIndex >= 0) {
@@ -958,7 +960,7 @@ function findFunctionIdentifier(content: string, cursorIndex: number): FindFunct
 
                 const currentParamText = content.substring(currentParamStart, cursorIndex);
 
-                return { identifier, parameterIndex, currentParamText };
+                return { identifier, parameterIndex, currentParamText, openParenPos };
             }
         } else if (char === ';') {
             return { identifier: '' };
@@ -1028,13 +1030,46 @@ export function doHover(
 
 export function doSignatures(content: string, position: VSCLS.Position, callables: Types.CallableDescriptor[]): VSCLS.SignatureHelp | null {
     const cursorIndex = positionToIndex(content, position);
-    const result = findFunctionIdentifier(content, cursorIndex);
 
-    if (!result.identifier) {
-        return null;
+    // Walk outward from cursor, skipping macro (#define) callables to find
+    // the nearest enclosing non-macro function — matches clangd behavior.
+    let searchFrom: number | undefined = undefined;
+    let result = findFunctionIdentifier(content, cursorIndex, searchFrom);
+
+    let callable: Types.CallableDescriptor | undefined;
+    const MAX_OUTER_SEARCH = 10;
+    let attempts = 0;
+
+    while (result.identifier && attempts < MAX_OUTER_SEARCH) {
+        attempts++;
+        const found = callables.find(c => c.identifier.toLowerCase() === result.identifier.toLowerCase());
+
+        if (!found) {
+            // Unknown function — go one level out
+            if (result.openParenPos !== undefined) {
+                searchFrom = result.openParenPos;
+                result = findFunctionIdentifier(content, cursorIndex, searchFrom);
+            } else {
+                break;
+            }
+            continue;
+        }
+
+        // If the found callable is a #define macro, skip it and look outward
+        const isMacro = found.label.trimStart().startsWith('#define');
+        if (isMacro) {
+            if (result.openParenPos !== undefined) {
+                searchFrom = result.openParenPos;
+                result = findFunctionIdentifier(content, cursorIndex, searchFrom);
+            } else {
+                break;
+            }
+            continue;
+        }
+
+        callable = found;
+        break;
     }
-
-    const callable = callables.find(c => c.identifier.toLowerCase() === result.identifier.toLowerCase());
 
     if (!callable) {
         return null;

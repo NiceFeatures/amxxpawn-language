@@ -7,6 +7,11 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.5.3] - 2026-06-22
+### Fixed
+- **Nested Signature Help inside Macros**: Corrigido o bug onde o Signature Help exibia a definição de macros `#define` com parâmetros (ex: `charsmax()`) ao invés de manter o foco na função externa que envelopa a expressão. Agora, o tooltip mantém a assinatura da função ativa.
+- * **Nested Signature Help inside Macros**: Fixed a bug where Signature Help would be hijacked by parameterized `#define` macro calls (like `charsmax()`), preventing the outer function signature from remaining visible.*
+
 ## [Version 1.5.1] - 2026-05-24
 ### Fixed
 - **Includes Inside Preprocessor Blocks**: Corrigido um bug onde diretivas `#include` indentadas dentro de blocos condicionais não eram reconhecidas, causando perda de auto-complete e highlights nas sub-includes.
