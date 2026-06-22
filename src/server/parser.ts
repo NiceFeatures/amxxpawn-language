@@ -12,6 +12,7 @@ import * as Path from 'path';
 interface FindFunctionIdentifierResult {
     identifier: string;
     parameterIndex?: number;
+    currentParamText?: string;
 }
 
 const callableDefinitionRegex = /^\s*(?:(forward|native|public|static|stock)\s+)?([A-Za-z_@][\w@:]*)\s*\(([^)]*)\)/;
@@ -39,7 +40,7 @@ function extractParamName(param: string): string | null {
 const pawnKeywords = [
     'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'default', 'return',
     'new', 'public', 'static', 'stock', 'const', 'forward', 'native',
-    'enum', 'bool', 'break', 'continue', 'sizeof', 'defined'
+    'enum', 'bool', 'break', 'continue', 'sizeof', 'defined', 'true', 'false'
 ];
 
 function stripComments(line: string, keepLength: boolean = false): string {
@@ -715,6 +716,8 @@ export function doDefinition(
     const result = findIdentifierAtCursor(content, cursorIndex);
     if (!result.identifier) return null;
 
+    if (pawnKeywords.includes(result.identifier)) return null;
+
     const identifierLower = result.identifier.toLowerCase();
 
     // Check local variables first (they shadow globals)
@@ -930,13 +933,32 @@ function findFunctionIdentifier(content: string, cursorIndex: number): FindFunct
                 const identifier = content.substring(startOfIdent, endOfIdent);
 
                 let parameterIndex = 0;
+                let forwardParenDepth = 0;
+                let inString = false;
+                let inChar = false;
+                let currentParamStart = openParenPos + 1;
+
                 for (let i = openParenPos + 1; i < cursorIndex; i++) {
-                    if (content[i] === ',') {
-                        parameterIndex++;
+                    const c = content[i];
+                    if (inString) {
+                        if (c === '"' && content[i - 1] !== '\\') inString = false;
+                    } else if (inChar) {
+                        if (c === "'" && content[i - 1] !== '\\') inChar = false;
+                    } else {
+                        if (c === '"') inString = true;
+                        else if (c === "'") inChar = true;
+                        else if (c === '(') forwardParenDepth++;
+                        else if (c === ')') forwardParenDepth--;
+                        else if (c === ',' && forwardParenDepth === 0) {
+                            parameterIndex++;
+                            currentParamStart = i + 1;
+                        }
                     }
                 }
 
-                return { identifier, parameterIndex };
+                const currentParamText = content.substring(currentParamStart, cursorIndex);
+
+                return { identifier, parameterIndex, currentParamText };
             }
         } else if (char === ';') {
             return { identifier: '' };
@@ -953,6 +975,8 @@ export function doHover(
     const cursorIndex = positionToIndex(content, position);
     const result = findIdentifierAtCursor(content, cursorIndex);
     if (!result.identifier) return null;
+
+    if (pawnKeywords.includes(result.identifier)) return null;
 
     // Check local variables first (they shadow globals)
     const localVars = data.localVariables;
@@ -1016,37 +1040,26 @@ export function doSignatures(content: string, position: VSCLS.Position, callable
         return null;
     }
 
-    let activeParameter = 0;
-    const openParenPos = content.lastIndexOf('(', cursorIndex - 1);
+    let activeParameter = result.parameterIndex || 0;
 
-    if (openParenPos !== -1) {
-        const textInParens = content.substring(openParenPos + 1, cursorIndex);
-        const lastCommaPos = textInParens.lastIndexOf(',');
-        const currentParamText = textInParens.substring(lastCommaPos + 1);
-
-        if (currentParamText.trim().startsWith('.')) {
-            const paramNameMatch = currentParamText.match(/\.(\w+)/);
-            if (paramNameMatch) {
-                const paramName = paramNameMatch[1];
-                const foundIndex = callable.parameters.findIndex(p => {
-                    if (typeof p.label !== 'string') {
-                        return false;
-                    }
-                    const paramSignature = p.label.split('=')[0].trim();
-
-                    const nameMatch = paramSignature.match(/(\w+)(?:\s*\[\s*\])?\s*$/);
-
-                    return nameMatch ? nameMatch[1] === paramName : false;
-                });
-
-                if (foundIndex !== -1) {
-                    activeParameter = foundIndex;
-                } else {
-                    activeParameter = (textInParens.match(/,/g) || []).length;
+    if (result.currentParamText && result.currentParamText.trim().startsWith('.')) {
+        const paramNameMatch = result.currentParamText.match(/\.(\w+)/);
+        if (paramNameMatch) {
+            const paramName = paramNameMatch[1];
+            const foundIndex = callable.parameters.findIndex(p => {
+                if (typeof p.label !== 'string') {
+                    return false;
                 }
+                const paramSignature = p.label.split('=')[0].trim();
+
+                const nameMatch = paramSignature.match(/(\w+)(?:\s*\[\s*\])?\s*$/);
+
+                return nameMatch ? nameMatch[1] === paramName : false;
+            });
+
+            if (foundIndex !== -1) {
+                activeParameter = foundIndex;
             }
-        } else {
-            activeParameter = (textInParens.match(/,/g) || []).length;
         }
     }
 
