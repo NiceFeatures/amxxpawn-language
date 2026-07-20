@@ -7,6 +7,11 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.5.4] - 2026-07-20
+### Fixed
+- **Intellisense em Variáveis de Loop**: Corrigida a detecção e realce semântico de variáveis declaradas dentro de loops (como `for (new i = 0; ...)`), garantindo auto-complete e "Go to Definition" corretos no corpo das funções.
+- * **Loop Variable Intellisense**: Fixed detection and semantic highlighting for variables declared inside loops (such as `for (new i = 0; ...)`), ensuring correct autocomplete and "Go to Definition" within function bodies.*
+
 ## [Version 1.5.3] - 2026-06-22
 ### Fixed
 - **Nested Signature Help inside Macros**: Corrigido o bug onde o Signature Help exibia a definição de macros `#define` com parâmetros (ex: `charsmax()`) ao invés de manter o foco na função externa que envelopa a expressão. Agora, o tooltip mantém a assinatura da função ativa.

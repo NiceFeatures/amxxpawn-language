@@ -22,7 +22,32 @@ const callableStartRegex = /^\s*(?:(?:forward|native|public|static|stock)\s+)?[A
 const defineRegex = /^#define\s+([A-Za-z_@][\w@]*)(?:\(([^)]*)\))?\s*(.*)/;
 const globalVarRegex = /^\s*(new|static|const|public|stock)\b/;
 const localVarRegex = /^\s*(?:new|static|const|stock)\b/;
+const localVarDeclRegex = /\b(?:new|static|const|stock)\b(?:\s+(?:new|static|const|stock)\b)*/;
 const enumRegex = /^\s*enum\s+(?:[A-Za-z_@][\w@:]*\s*)?{/;
+
+function stripStrings(line: string): string {
+    let result = '';
+    let inString = false;
+    let quote = '';
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (inString) {
+            if (char === quote && (i === 0 || line[i - 1] !== '\\')) {
+                inString = false;
+                result += char;
+            } else {
+                result += ' ';
+            }
+        } else {
+            if ((char === '"' || char === "'") && (i === 0 || line[i - 1] !== '\\')) {
+                inString = true;
+                quote = char;
+            }
+            result += char;
+        }
+    }
+    return result;
+}
 const taskFunctions = new Set(['set_task', 'set_task_ex', 'register_clcmd', 'register_concmd', 'register_srvcmd']);
 
 const preprocessorDirectives = [
@@ -251,21 +276,23 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
         if (bracketDepth > 0) {
             // --- Parse local variable declarations inside function bodies ---
             if (currentFunctionStartLine >= 0) {
-                const isDeclStart = localVarRegex.test(lineContent);
+                const lineWithoutStrings = stripStrings(lineContent);
+                const declMatch = lineWithoutStrings.match(localVarDeclRegex);
+                const isDeclStart = declMatch !== null;
                 if (isDeclStart || (currentVarDecl && !currentVarDecl.isGlobal)) {
-                    if (isDeclStart) {
+                    if (isDeclStart && declMatch) {
                         currentVarDecl = {
                             isGlobal: false,
-                            isConst: lineContent.includes('const'),
-                            isStatic: lineContent.includes('static'),
+                            isConst: declMatch[0].includes('const'),
+                            isStatic: declMatch[0].includes('static'),
                             isPublic: false,
-                            isStock: lineContent.includes('stock')
+                            isStock: declMatch[0].includes('stock')
                         };
                     }
 
                     let declPart = lineContent;
-                    if (isDeclStart) {
-                        declPart = lineContent.replace(/^\s*(?:(?:new|static|const|stock)\s+)+/, '');
+                    if (isDeclStart && declMatch) {
+                        declPart = lineContent.substring(declMatch.index! + declMatch[0].length);
                     }
 
                     if (!/^\s*(?:new|static|const|stock|\s)+$/.test(lineContent)) {
@@ -286,11 +313,8 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                         segments.push(currentSeg);
 
                         let searchPos = originalLine.indexOf(lineContent);
-                        if (isDeclStart) {
-                            const modMatch = lineContent.match(/^\s*(?:(?:new|static|const|stock)\s+)+/);
-                            if (modMatch) {
-                                searchPos += modMatch[0].length;
-                            }
+                        if (isDeclStart && declMatch) {
+                            searchPos += declMatch.index! + declMatch[0].length;
                         }
 
                         for (const seg of segments) {
@@ -1387,6 +1411,7 @@ export function doRename(
     const identifier = result.identifier;
     const escapedId = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const lines = content.split(/\r?\n/);
+    const lineRegex = new RegExp(`(?<![\\w@])${escapedId}(?![\\w@])`, 'g');
 
     let inBlockComment = false;
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
@@ -1410,7 +1435,7 @@ export function doRename(
         const noStrings = line.replace(/"[^"]*"/g, '""').replace(/'[^']*'/g, "''");
 
         let match: RegExpExecArray | null;
-        const lineRegex = new RegExp(`(?<![\\w@])${escapedId}(?![\\w@])`, 'g');
+        lineRegex.lastIndex = 0;
         while ((match = lineRegex.exec(noStrings)) !== null) {
             edits.push(VSCLS.TextEdit.replace(
                 {

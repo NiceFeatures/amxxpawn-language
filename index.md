@@ -34,6 +34,13 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.5.4)
+### Fixed
+- **Intellisense em Variáveis de Loop**: Corrigida a detecção e realce semântico de variáveis declaradas dentro de loops (como `for (new i = 0; ...)`), garantindo auto-complete e "Go to Definition" corretos no corpo das funções.
+- * **Loop Variable Intellisense**: Fixed detection and semantic highlighting for variables declared inside loops (such as `for (new i = 0; ...)`), ensuring correct autocomplete and "Go to Definition" within function bodies.*
+
+---
+
 ## ✨ What's New (v1.5.3)
 ### Fixed
 - **Nested Signature Help inside Macros**: Corrigido o bug em que o Signature Help exibia a definição de macros `#define` de forma desnecessária ao invés de manter o foco na função externa que envelopa a expressão (comportamento similar ao clangd).
