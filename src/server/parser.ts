@@ -48,6 +48,24 @@ function stripStrings(line: string): string {
     }
     return result;
 }
+
+function splitByCommaRespectingStrings(text: string): string[] {
+    const segments: string[] = [];
+    let currentSeg = '';
+    let inString = false;
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char === '"' && (i === 0 || text[i - 1] !== '\\')) inString = !inString;
+        if (char === ',' && !inString) {
+            segments.push(currentSeg);
+            currentSeg = '';
+        } else {
+            currentSeg += char;
+        }
+    }
+    segments.push(currentSeg);
+    return segments;
+}
 const taskFunctions = new Set(['set_task', 'set_task_ex', 'register_clcmd', 'register_concmd', 'register_srvcmd']);
 
 const preprocessorDirectives = [
@@ -296,21 +314,7 @@ export function parse(fileUri: URI, content: string, skipStatic: boolean): Types
                     }
 
                     if (!/^\s*(?:new|static|const|stock|\s)+$/.test(lineContent)) {
-                        // Split by comma but respect strings
-                        const segments: string[] = [];
-                        let currentSeg = '';
-                        let inString = false;
-                        for (let i = 0; i < declPart.length; i++) {
-                            const char = declPart[i];
-                            if (char === '"' && (i === 0 || declPart[i - 1] !== '\\')) inString = !inString;
-                            if (char === ',' && !inString) {
-                                segments.push(currentSeg);
-                                currentSeg = '';
-                            } else {
-                                currentSeg += char;
-                            }
-                        }
-                        segments.push(currentSeg);
+                        const segments = splitByCommaRespectingStrings(declPart);
 
                         let searchPos = originalLine.indexOf(lineContent);
                         if (isDeclStart && declMatch) {

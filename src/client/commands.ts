@@ -50,17 +50,31 @@ function downloadFile(url: string, destPath: string): Promise<void> {
 
 function extractZip(zipPath: string, destDir: string): Promise<void> {
     return new Promise((resolve, reject) => {
-        // Escape single quotes for PowerShell (replace ' with '')
-        const psDestDir = destDir.replace(/'/g, "''");
-        const psZipPath = zipPath.replace(/'/g, "''");
-        const cmd = process.platform === 'win32'
-            ? `powershell -NoProfile -Command "Expand-Archive -Path '${psZipPath}' -DestinationPath '${psDestDir}' -Force; Copy-Item -Path '${psDestDir}\\addons\\amxmodx\\scripting\\*' -Destination '${psDestDir}' -Recurse -Force; Remove-Item -Path '${psDestDir}\\addons', '${psDestDir}\\testsuite', '${psDestDir}\\*.sma' -Recurse -Force"`
-            : `tar -xzf "${zipPath}" --strip-components=3 -C "${destDir}" addons/amxmodx/scripting && rm -rf "${destDir}"/*.sma "${destDir}/testsuite"`;
-
-        CP.exec(cmd, (error) => {
-            if (error) reject(error);
-            else resolve();
-        });
+        if (process.platform === 'win32') {
+            const psDestDir = destDir.replace(/'/g, "''");
+            const psZipPath = zipPath.replace(/'/g, "''");
+            const psScript = `Expand-Archive -Path '${psZipPath}' -DestinationPath '${psDestDir}' -Force; Copy-Item -Path '${psDestDir}\\addons\\amxmodx\\scripting\\*' -Destination '${psDestDir}' -Recurse -Force; Remove-Item -Path '${psDestDir}\\addons', '${psDestDir}\\testsuite', '${psDestDir}\\*.sma' -Recurse -Force`;
+            CP.execFile('powershell.exe', ['-NoProfile', '-Command', psScript], (error) => {
+                if (error) reject(error);
+                else resolve();
+            });
+        } else {
+            CP.execFile('tar', ['-xzf', zipPath, '--strip-components=3', '-C', destDir, 'addons/amxmodx/scripting'], (error) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    try {
+                        const entries = FS.readdirSync(destDir);
+                        for (const entry of entries) {
+                            if (entry.endsWith('.sma') || entry === 'testsuite') {
+                                FS.rmSync(Path.join(destDir, entry), { recursive: true, force: true });
+                            }
+                        }
+                    } catch { /* ignore cleanup error */ }
+                    resolve();
+                }
+            });
+        }
     });
 }
 
@@ -194,24 +208,24 @@ function doCompile(executablePath: string, inputPath: string, compilerSettings: 
     }
 
     const compilerArgs: string[] = [
-        `"${inputPath}"`,
+        inputPath,
         ...compilerSettings.options,
-        ...compilerSettings.includePaths.map((path) => `-i"${Helpers.resolvePathVariables(path, workspaceRoot, inputPath)}"`),
-        `-o"${outputPath}"`
+        ...compilerSettings.includePaths.map((path) => `-i${Helpers.resolvePathVariables(path, workspaceRoot, inputPath)}`),
+        `-o${outputPath}`
     ];
 
     const spawnOptions: CP.SpawnOptions = {
         cwd: Path.dirname(executablePath),
-        shell: true
+        shell: false
     };
 
     if (compilerSettings.showInfoMessages === true) {
-        outputChannel.appendLine(VSC.l10n.t('Starting amxxpc: "{0}" {1}\n', executablePath, compilerArgs.join(' ')));
+        outputChannel.appendLine(VSC.l10n.t('Starting amxxpc: "{0}" {1}\n', executablePath, compilerArgs.map(arg => `"${arg}"`).join(' ')));
     }
 
     let compilerStdout = '';
 
-    const amxxpcProcess = CP.spawn(`"${executablePath}"`, compilerArgs, spawnOptions);
+    const amxxpcProcess = CP.spawn(executablePath, compilerArgs, spawnOptions);
 
     if (amxxpcProcess.stdout) {
         amxxpcProcess.stdout.on('data', (data) => {
@@ -440,7 +454,10 @@ export function compileLocal(outputChannel: VSC.OutputChannel, diagnosticCollect
     const inputPath = editor.document.uri.fsPath;
     const executableDir = Path.dirname(inputPath);
     FS.readdir(executableDir, (err, files) => {
-        if (err) { throw err; }
+        if (err) {
+            outputChannel.appendLine(VSC.l10n.t('❌ Error reading directory \'{0}\': {1}', executableDir, err.message));
+            return;
+        }
         const potentialFiles = files.filter((file) => file.startsWith('amxxpc'));
         let executablePath: string;
         if (potentialFiles.includes('amxxpc.exe')) {
@@ -460,7 +477,7 @@ export async function createPlugin(context: VSC.ExtensionContext, onCompilerDown
     let executablePath = compilerSettings?.executablePath;
 
     if (executablePath) {
-        executablePath = Helpers.resolvePathVariables(executablePath, VSC.workspace.workspaceFolders?.[0]?.uri.fsPath, '');
+        executablePath = Helpers.resolvePathVariables(executablePath, VSC.workspace.workspaceFolders?.[0]?.uri.fsPath, undefined);
     }
 
     if (!executablePath || !FS.existsSync(executablePath)) {

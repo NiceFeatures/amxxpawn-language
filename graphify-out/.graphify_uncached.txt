@@ -1,0 +1,8 @@
+C:\Users\iceeedR\Desktop\amxxpawn-language\.github\workflows\main.yml
+C:\Users\iceeedR\Desktop\amxxpawn-language\.github\workflows\release.yml
+C:\Users\iceeedR\Desktop\amxxpawn-language\CHANGELOG.md
+C:\Users\iceeedR\Desktop\amxxpawn-language\LICENSE.txt
+C:\Users\iceeedR\Desktop\amxxpawn-language\README.md
+C:\Users\iceeedR\Desktop\amxxpawn-language\_config.yml
+C:\Users\iceeedR\Desktop\amxxpawn-language\index.md
+C:\Users\iceeedR\Desktop\amxxpawn-language\images\extension-logo.png

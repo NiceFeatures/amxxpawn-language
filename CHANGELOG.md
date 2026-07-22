@@ -7,6 +7,23 @@ layout: default
   <a href="/amxxpawn-language/CHANGELOG.html">Histórico de Mudanças</a>
 </p>
 
+## [Version 1.5.5] - 2026-07-22
+### Fixed
+- **Prevenção de Crash em `compileLocal`**: Tratado erro na leitura de diretórios em `compileLocal` para evitar Unhandled Exceptions no Extension Host.
+- * **`compileLocal` Crash Prevention**: Fixed unhandled exception when reading directory during local compilation, preventing Extension Host crashes.*
+- **Tratamento de Exceção Assíncrona no LSP**: Adicionada captura de rejeição de Promise no temporizador de debounce de reparse do servidor.
+- * **Async Exception Handling in LSP**: Added proper promise rejection catch block to reparse debounce timers in Language Server.*
+
+### Security
+- **Invocação Segura do Compilador e Extração**: Substituído `CP.exec` por chamadas parametrizadas `CP.execFile` e desativada a opção `shell: true` na execução do `amxxpc`, eliminando riscos de injeção de parâmetros e problemas de escape em caminhos de arquivos.
+- * **Secure Process Execution & Extraction**: Replaced `CP.exec` shell concatenation with safe `CP.execFile` calls and disabled `shell: true` on `amxxpc` execution, eliminating parameter injection risks and path escaping bugs.*
+
+### Performance & Refactoring
+- **Gestão de Memória no Cache de Includes**: Implementado limite de tamanho (LRU com capacidade para 200 arquivos) no cache de conteúdo de arquivos `.inc` no Language Server para conter o uso de RAM.
+- * **Include Cache Memory Management**: Implemented a bounded cache size (LRU up to 200 files) for `.inc` files in the Language Server to prevent excessive RAM usage.*
+- **Hoisting de Expressões Regulares**: Otimizadas as funções utilitárias de verificação de caracteres (`isAlpha`, `isAlphaNum`, etc.) reutilizando expressões regulares estáticas para reduzir pressão de Garbage Collection.
+- * **RegExp Hoisting**: Optimized character checking utility functions by hoisting static regular expressions, reducing Garbage Collection pressure.*
+
 ## [Version 1.5.4] - 2026-07-20
 ### Fixed
 - **Intellisense em Variáveis de Loop**: Corrigida a detecção e realce semântico de variáveis declaradas dentro de loops (como `for (new i = 0; ...)`), garantindo auto-complete e "Go to Definition" corretos no corpo das funções.

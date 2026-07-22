@@ -28,12 +28,16 @@ export class FileDependencyManager {
         return descriptor.dependency;
     }
 
-    public removeDependency(uri: string) {
-        if(!this._dependencies.has(uri)) {
-            throw new Error('Tried to remove a non-existent dependency.');
-        }
+    public hasDependency(uri: string): boolean {
+        return this._dependencies.has(uri);
+    }
 
+    public removeDependency(uri: string): boolean {
+        if (!this._dependencies.has(uri)) {
+            return false;
+        }
         this._dependencies.delete(uri);
+        return true;
     }
 
     public getAllDependencies() {

@@ -34,6 +34,17 @@ This project revives and modernizes the development experience for **AMX Mod X**
 
 It transforms VS Code into a powerful IDE for Pawn, bringing features that were previously exclusive to newer languages.
 
+## ✨ What's New (v1.5.5)
+### Fixed & Security
+- **Segurança de Processos e Prevenção de Crash**: Refatorada a invocação do compilador `amxxpc` e extração de arquivos para eliminar vulnerabilidades de shell e prevenir travamentos em `compileLocal`.
+- * **Process Security & Crash Prevention**: Refactored `amxxpc` execution and file extraction to eliminate shell vulnerabilities and prevent `compileLocal` crashes.*
+
+### Performance & Optimization
+- **Gerenciamento de Memória (RAM)**: Implementado limite LRU para cache de arquivos `.inc` e reaproveitamento estático de `RegExp` em utilitários de texto para reduzir a pressão de Garbage Collection no Language Server.
+- * **Memory Management (RAM)**: Added LRU bounds for `.inc` file caching and static `RegExp` hoisting in string utilities to reduce Garbage Collection overhead.*
+
+---
+
 ## ✨ What's New (v1.5.4)
 ### Fixed
 - **Intellisense em Variáveis de Loop**: Corrigida a detecção e realce semântico de variáveis declaradas dentro de loops (como `for (new i = 0; ...)`), garantindo auto-complete e "Go to Definition" corretos no corpo das funções.

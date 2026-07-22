@@ -202,7 +202,9 @@ function scheduleReparse(document: TextDocument) {
     // Agenda novo reparse com delay
     const timer = setTimeout(() => {
         reparseTimers.delete(uri);
-        validateAndReparse(document);
+        validateAndReparse(document).catch(e => {
+            connection.console.error(`Error during reparse for ${uri}: ${e}`);
+        });
     }, REPARSE_DELAY);
 
     reparseTimers.set(uri, timer);
@@ -382,6 +384,8 @@ function resolveIncludePath(filename: string, documentPath: string, localTo: str
     return undefined;
 }
 
+const MAX_INCLUDE_CACHE_SIZE = 200;
+
 // --- Fix #2: Função auxiliar para ler include com cache ---
 function readIncludeContent(uri: string): string | null {
     // Verifica se já está no cache
@@ -390,10 +394,16 @@ function readIncludeContent(uri: string): string | null {
         return cached;
     }
 
-    // Lê do disco e armazena no cache
+    // Lê do disco e armazena no cache com limite de tamanho
     try {
         const fsPath = URI.parse(uri).fsPath;
         const content = FS.readFileSync(fsPath).toString();
+        if (includeContentCache.size >= MAX_INCLUDE_CACHE_SIZE) {
+            const firstKey = includeContentCache.keys().next().value;
+            if (firstKey !== undefined) {
+                includeContentCache.delete(firstKey);
+            }
+        }
         includeContentCache.set(uri, content);
         return content;
     } catch (e) {

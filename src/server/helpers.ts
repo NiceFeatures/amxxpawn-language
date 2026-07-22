@@ -123,11 +123,7 @@ export function removeUnreachableDependencies(
     for (const dep of allDeps) {
         if (!reachable.has(dep.uri)) {
             dependenciesData.delete(dep);
-            try {
-                dependencyManager.removeDependency(dep.uri);
-            } catch (_) {
-                // Já foi removida
-            }
+            dependencyManager.removeDependency(dep.uri);
         }
     }
 }
